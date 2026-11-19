@@ -1198,7 +1198,7 @@
       if (forcedResult === null && !isScanning) statusDot.className = '';
     }
 
-    // --- API GEMINI (MODO TURBO - FLASH LITE) ---
+    // --- API GEMINI (MODO TURBO - 3.5 FLASH LITE) ---
     async function consultarGemini(base64Jpeg) {
       let prompt = '';
       if (ocrMode === 't9') {
@@ -1209,7 +1209,7 @@
         prompt = "Encontre a tela de outro celular com uma calculadora aberta ou número em destaque. Leia APENAS o número grande no visor principal. IGNORE botões do teclado (0 a 9), relógio e bateria. Responda SOMENTE com os dígitos puros. Se não houver número legível, responda: NONE";
       }
 
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${encodeURIComponent(geminiApiKey)}`;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${encodeURIComponent(geminiApiKey)}`;
 
       const res = await fetch(url, {
         method: 'POST',
@@ -1293,7 +1293,6 @@
         const cropX = Math.floor((video.videoWidth - cropW) / 2);
         const cropY = Math.floor((video.videoHeight - cropH) / 2);
 
-        // Imagem leve (640px) para envio ultra rápido
         const outW = Math.min(cropW, 640);
         const outH = Math.round((cropH / cropW) * outW);
 
