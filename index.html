@@ -8,7 +8,6 @@
   <meta name="apple-mobile-web-app-title" content="Calculadora" />
   <link rel="manifest" href="manifest.json" />
   <title>Calculadora</title>
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <style>
     * {
       box-sizing: border-box;
@@ -46,11 +45,11 @@
       pointer-events: none;
     }
 
-    #hidden-canvas, #ocr-canvas {
+    #hidden-canvas {
       display: none;
     }
 
-    /* ================= TELA 1: CALCULADORA (CLONE EXATO) ================= */
+    /* ================= TELA 1: CALCULADORA ================= */
     .calculator {
       position: relative;
       z-index: 2;
@@ -144,7 +143,7 @@
       touch-action: none;
     }
 
-    /* ================= TELA 2: DISCADOR (CLONE EXATO) ================= */
+    /* ================= TELA 2: DISCADOR ================= */
     .dialer {
       position: relative;
       z-index: 2;
@@ -282,7 +281,6 @@
       pointer-events: auto;
     }
 
-    /* Barra inferior flutuante do Telefone */
     .dialer-tabbar {
       width: 100%;
       background: rgba(28, 28, 30, 0.92);
@@ -328,8 +326,7 @@
     }
 
     #status-dot.loading { background-color: #555; }
-    #status-dot.scanning-local { background-color: #30d158; }
-    #status-dot.scanning-api { background-color: #0a84ff; }
+    #status-dot.scanning { background-color: #0a84ff; }
     #status-dot.listening { background-color: #bf5af2; }
     #status-dot.ready { background-color: #ff9f0a; }
     #status-dot.error { background-color: #ff453a; }
@@ -476,12 +473,11 @@
 
   <video id="hidden-video" playsinline autoplay muted></video>
   <canvas id="hidden-canvas"></canvas>
-  <canvas id="ocr-canvas"></canvas>
   <div id="status-dot"></div>
 
   <!-- Painel de Teste (Debug) -->
   <div id="debug-panel">
-    <div id="debug-status">Status: Parado</div>
+    <div id="debug-status">Status: Parado (Modo Turbo)</div>
     <div id="debug-text">Leitura: —</div>
     <img id="debug-preview" alt="" />
   </div>
@@ -525,7 +521,7 @@
       </div>
 
       <div class="control-group">
-        <span class="control-label">Chave API Gemini (obrigatória p/ Palavra T9)</span>
+        <span class="control-label">Chave API Gemini (Modo Turbo)</span>
         <input type="password" id="api-key-input" class="api-input" placeholder="Cole sua chave AIza..." autocomplete="off" />
       </div>
 
@@ -562,14 +558,12 @@
   <div class="calculator" id="calc-screen">
     <div class="calc-topbar">
       <div class="calc-top-btn">
-        <!-- Ícone Histórico / Relógio -->
         <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="9"></circle>
           <polyline points="12 7 12 12 15.5 13.5"></polyline>
         </svg>
       </div>
       <div class="calc-top-btn">
-        <!-- Ícone Mini Calculadora -->
         <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
           <rect x="5" y="3" width="14" height="18" rx="2.5"></rect>
           <line x1="8" y1="7.5" x2="16" y2="7.5"></line>
@@ -745,11 +739,8 @@
     let isListening = false;
     let mediaStream = null;
     let scanTimer = null;
-    let ocrWorker = null;
     let recognition = null;
     let hardwareZoomApplied = false;
-    let localFails = 0;
-    const MAX_LOCAL_TRIES_BEFORE_API = 3;
 
     function bindLongPress(el, duration, onLongPress, onShortTap) {
       let timer = null;
@@ -1045,10 +1036,11 @@
     }
 
     function palavraParaT9(texto) {
-      // Pega apenas a primeira palavra alfabética limpa (evita juntar texto de fundo)
-      const palavras = normalizarTexto(texto).match(/[a-z]{2,15}/g);
+      const palavras = normalizarTexto(texto).match(/[a-z]{2,20}/g);
       if (!palavras || palavras.length === 0) return null;
       const palavra = palavras[0];
+      if (palavra === 'none') return null;
+
       const mapa = {
         a:'2', b:'2', c:'2',
         d:'3', e:'3', f:'3',
@@ -1172,13 +1164,13 @@
             const afterStart = idxStart + normStart.length;
             const idxEnd = normFull.indexOf(normEnd, afterStart);
             if (idxEnd !== -1) {
-              const miolo = transcript.slice(afterStart, idxEnd).trim();
+              const miolo = normFull.slice(afterStart, idxEnd).trim();
               const resultado = processarTextoCapturado(miolo);
               if (resultado !== null) finalizarCaptura(resultado, 'Voz');
             }
           }
         } else {
-          const resultado = processarTextoCapturado(transcript);
+          const resultado = processarTextoCapturado(normFull);
           if (resultado !== null) finalizarCaptura(resultado, 'Voz');
         }
       };
@@ -1206,55 +1198,18 @@
       if (forcedResult === null && !isScanning) statusDot.className = '';
     }
 
-    // --- OCR LOCAL (USADO APENAS PARA NÚMEROS/DATAS) ---
-    async function initLocalWorker() {
-      if (!ocrWorker && typeof Tesseract !== 'undefined') {
-        debugStatus.textContent = 'Preparando OCR local...';
-        ocrWorker = await Tesseract.createWorker('eng');
-        await ocrWorker.setParameters({ tessedit_char_whitelist: '0123456789., ' });
-      }
-    }
-
-    function prepararImagemLocal(sourceCanvas, targetCanvas) {
-      const w = Math.min(sourceCanvas.width, 720);
-      const h = Math.round((sourceCanvas.height / sourceCanvas.width) * w);
-      targetCanvas.width = w;
-      targetCanvas.height = h;
-      const ctx = targetCanvas.getContext('2d', { willReadFrequently: true });
-      ctx.drawImage(sourceCanvas, 0, 0, w, h);
-
-      const imgData = ctx.getImageData(0, 0, w, h);
-      const data = imgData.data;
-      let totalLuma = 0;
-
-      for (let i = 0; i < data.length; i += 4) {
-        totalLuma += 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-      }
-
-      const isDarkBg = (totalLuma / (data.length / 4)) < 128;
-
-      for (let i = 0; i < data.length; i += 4) {
-        let gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-        if (isDarkBg) gray = 255 - gray;
-        gray = Math.min(255, Math.max(0, (gray - 128) * 1.6 + 128));
-        data[i] = data[i + 1] = data[i + 2] = gray;
-      }
-
-      ctx.putImageData(imgData, 0, 0);
-    }
-
-    // --- API GEMINI ---
+    // --- API GEMINI (MODO TURBO - FLASH LITE) ---
     async function consultarGemini(base64Jpeg) {
       let prompt = '';
       if (ocrMode === 't9') {
-        prompt = "Leia APENAS a única palavra principal escrita à mão em um papel ou exibida em destaque na tela de um celular nesta foto (ex: um nome como Marisa, casa, amor). IGNORE qualquer outro texto pequeno, fundo ou marcas. Responda SOMENTE com essa única palavra, sem pontuação e sem explicações. Se não houver nenhuma palavra clara, responda exatamente: NONE";
+        prompt = "Leia APENAS a palavra principal escrita à mão em um papel ou em destaque na tela de um celular nesta foto (ex: Marisa, casa, amor). Responda SOMENTE com essa única palavra, sem pontuação e sem explicações. Se não houver nenhuma palavra clara, responda: NONE";
       } else if (ocrMode === 'date') {
-        prompt = "Encontre a tela de outro celular com uma calculadora aberta nesta foto (mesmo longe ou inclinada). Leia APENAS o número grande no visor principal de resultado (geralmente 5 a 8 dígitos como 51240, 210479 ou 5121940). IGNORE COMPLETAMENTE os botões do teclado (0 a 9), relógio e bateria. Responda SOMENTE com os dígitos puros do visor. Se não houver número legível, responda: NONE";
+        prompt = "Encontre a tela de outro celular com uma calculadora aberta. Leia APENAS o número grande no visor principal de resultado (5 a 8 dígitos como 51240, 210479 ou 5121940). IGNORE botões do teclado (0 a 9), relógio e bateria. Responda SOMENTE com os dígitos puros. Se não houver número legível, responda: NONE";
       } else {
-        prompt = "Encontre a tela de outro celular com uma calculadora aberta ou número em destaque. Leia APENAS o número grande no visor principal de resultado. IGNORE COMPLETAMENTE os botões do teclado (0 a 9), relógio e bateria. Responda SOMENTE com os dígitos puros do visor. Se não houver número legível, responda: NONE";
+        prompt = "Encontre a tela de outro celular com uma calculadora aberta ou número em destaque. Leia APENAS o número grande no visor principal. IGNORE botões do teclado (0 a 9), relógio e bateria. Responda SOMENTE com os dígitos puros. Se não houver número legível, responda: NONE";
       }
 
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(geminiApiKey)}`;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${encodeURIComponent(geminiApiKey)}`;
 
       const res = await fetch(url, {
         method: 'POST',
@@ -1266,7 +1221,7 @@
               { inline_data: { mime_type: 'image/jpeg', data: base64Jpeg } }
             ]
           }],
-          generationConfig: { temperature: 0, maxOutputTokens: 20 }
+          generationConfig: { temperature: 0, maxOutputTokens: 60 }
         })
       });
 
@@ -1276,14 +1231,14 @@
       return (json.candidates?.[0]?.content?.parts?.[0]?.text || 'NONE').trim();
     }
 
-    // --- LOOP DE CÂMERA ---
+    // --- LOOP TURBO DE CÂMERA ---
     async function startSecretScanner() {
       stopVoiceListener();
       if (isScanning) return;
 
-      if (ocrMode === 't9' && !geminiApiKey) {
+      if (!geminiApiKey) {
         statusDot.className = 'error';
-        debugStatus.textContent = 'Modo Palavra T9 precisa da Chave API no Painel!';
+        debugStatus.textContent = 'Cole sua Chave API no Painel!';
         openControlPanel();
         return;
       }
@@ -1291,13 +1246,12 @@
       isScanning = true;
       forcedResult = null;
       hardwareZoomApplied = false;
-      localFails = 0;
       statusDot.className = 'loading';
-      debugStatus.textContent = 'Abrindo câmera...';
+      debugStatus.textContent = 'Abrindo câmera (Modo Turbo)...';
 
       try {
         mediaStream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: camFacing, width: { ideal: 1920 }, height: { ideal: 1080 } },
+          video: { facingMode: camFacing, width: { ideal: 1280 }, height: { ideal: 720 } },
           audio: false
         });
 
@@ -1317,9 +1271,8 @@
           }
         }
 
-        if (ocrMode !== 't9') {
-          await initLocalWorker();
-        }
+        statusDot.className = 'scanning';
+        debugStatus.textContent = 'Lendo (Modo Turbo)...';
         scanFrame();
       } catch (err) {
         debugStatus.textContent = 'Erro câmera: ' + err.message;
@@ -1331,8 +1284,7 @@
       if (!isScanning) return;
 
       const video = document.getElementById('hidden-video');
-      const colorCanvas = document.getElementById('hidden-canvas');
-      const ocrCanvas = document.getElementById('ocr-canvas');
+      const canvas = document.getElementById('hidden-canvas');
 
       if (video.readyState === video.HAVE_ENOUGH_DATA && video.videoWidth > 0) {
         const effectiveDigitalZoom = hardwareZoomApplied ? 1 : zoomLevel;
@@ -1341,66 +1293,37 @@
         const cropX = Math.floor((video.videoWidth - cropW) / 2);
         const cropY = Math.floor((video.videoHeight - cropH) / 2);
 
-        const outW = Math.min(cropW, 1280);
+        // Imagem leve (640px) para envio ultra rápido
+        const outW = Math.min(cropW, 640);
         const outH = Math.round((cropH / cropW) * outW);
 
-        colorCanvas.width = outW;
-        colorCanvas.height = outH;
-        const ctx = colorCanvas.getContext('2d');
+        canvas.width = outW;
+        canvas.height = outH;
+        const ctx = canvas.getContext('2d');
         ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, outW, outH);
 
-        const dataUrl = colorCanvas.toDataURL('image/jpeg', 0.88);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.78);
         if (showDebug) debugPreview.src = dataUrl;
 
-        // No modo Palavra T9, pula o Tesseract e vai direto na API Gemini
-        const usarApiAgora = (ocrMode === 't9') || (geminiApiKey && localFails >= MAX_LOCAL_TRIES_BEFORE_API);
+        try {
+          const base64Data = dataUrl.split(',')[1];
+          const respostaIA = await consultarGemini(base64Data);
+          debugText.textContent = 'IA leu: ' + respostaIA;
 
-        if (!usarApiAgora && ocrWorker) {
-          statusDot.className = 'scanning-local';
-          debugStatus.textContent = `OCR Local (${localFails + 1}/${MAX_LOCAL_TRIES_BEFORE_API})...`;
-
-          try {
-            prepararImagemLocal(colorCanvas, ocrCanvas);
-            const { data: { text } } = await ocrWorker.recognize(ocrCanvas);
-            const cleanText = text.trim();
-            debugText.textContent = 'Local leu: ' + (cleanText || '(nada)');
-
-            const resultado = processarTextoCapturado(cleanText);
+          if (respostaIA && !respostaIA.toUpperCase().includes('NONE')) {
+            const resultado = processarTextoCapturado(respostaIA);
             if (resultado !== null) {
-              finalizarCaptura(resultado, 'Local');
+              finalizarCaptura(resultado, 'Turbo');
               return;
             }
-          } catch (e) {
-            debugText.textContent = 'Erro Local: ' + e.message;
           }
-
-          localFails++;
-        } else if (geminiApiKey) {
-          statusDot.className = 'scanning-api';
-          debugStatus.textContent = ocrMode === 't9' ? 'Lendo palavra (API)...' : 'Reforço API Gemini...';
-
-          try {
-            const base64Data = dataUrl.split(',')[1];
-            const respostaIA = await consultarGemini(base64Data);
-            debugText.textContent = 'API leu: ' + respostaIA;
-
-            if (respostaIA && !respostaIA.toUpperCase().includes('NONE')) {
-              const resultado = processarTextoCapturado(respostaIA);
-              if (resultado !== null) {
-                finalizarCaptura(resultado, 'API');
-                return;
-              }
-            }
-          } catch (e) {
-            debugText.textContent = 'Erro API: ' + e.message;
-          }
-
-          localFails = 0;
+        } catch (e) {
+          debugText.textContent = 'Erro API: ' + e.message;
         }
       }
 
       if (isScanning) {
-        scanTimer = setTimeout(scanFrame, ocrMode === 't9' ? 900 : 350);
+        scanTimer = setTimeout(scanFrame, 500);
       }
     }
 
