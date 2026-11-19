@@ -17,6 +17,7 @@
       -webkit-tap-highlight-color: transparent;
       user-select: none;
       -webkit-user-select: none;
+      -webkit-touch-callout: none;
     }
 
     html, body {
@@ -86,7 +87,12 @@
       align-items: center;
       justify-content: center;
       cursor: pointer;
+      touch-action: manipulation;
       transition: filter 0.1s ease;
+    }
+
+    #btn-ac, #btn-sign {
+      touch-action: none;
     }
 
     button:active {
@@ -113,7 +119,6 @@
       padding-left: 30px;
     }
 
-    /* Indicador discreto no canto inferior direito */
     #status-dot {
       position: fixed;
       z-index: 10;
@@ -152,11 +157,12 @@
 
     #debug-preview {
       width: 100%;
-      max-height: 85px;
+      height: 90px;
       object-fit: contain;
       background: #111;
       border: 1px solid #333;
       margin-top: 6px;
+      display: block;
     }
 
     /* Painel de Controle Oculto */
@@ -196,14 +202,14 @@
     }
 
     .control-group {
-      margin-bottom: 16px;
+      margin-bottom: 14px;
     }
 
     .control-label {
       display: block;
       font-size: 13px;
       color: #aaa;
-      margin-bottom: 8px;
+      margin-bottom: 6px;
     }
 
     .option-row {
@@ -215,7 +221,7 @@
     .ctrl-btn {
       aspect-ratio: auto;
       border-radius: 10px;
-      padding: 12px 10px;
+      padding: 11px 8px;
       font-size: 14px;
       font-weight: 500;
       background: #2c2c2e;
@@ -234,7 +240,7 @@
       width: 100%;
       aspect-ratio: auto;
       border-radius: 12px;
-      padding: 14px;
+      padding: 13px;
       font-size: 16px;
       font-weight: 600;
       background: #333;
@@ -270,6 +276,14 @@
       </div>
 
       <div class="control-group">
+        <span class="control-label">Revelação do Número</span>
+        <div class="option-row">
+          <button class="ctrl-btn" id="reveal-immediate">Imediata na Tela</button>
+          <button class="ctrl-btn" id="reveal-equals">Ao Clicar em =</button>
+        </div>
+      </div>
+
+      <div class="control-group">
         <span class="control-label">Câmera</span>
         <div class="option-row">
           <button class="ctrl-btn" id="cam-back">Traseira</button>
@@ -278,7 +292,7 @@
       </div>
 
       <div class="control-group">
-        <span class="control-label">Visor de Teste (Debug)</span>
+        <span class="control-label">Visor de Teste (Câmera + OCR)</span>
         <div class="option-row">
           <button class="ctrl-btn" id="debug-off">Oculto</button>
           <button class="ctrl-btn" id="debug-on">Visível</button>
@@ -293,7 +307,7 @@
     <div class="display" id="display">0</div>
     <div class="buttons">
       <button class="btn-light" id="btn-ac">AC</button>
-      <button class="btn-light" id="btn-sign" data-action="sign">±</button>
+      <button class="btn-light" id="btn-sign">±</button>
       <button class="btn-light" data-action="percent">%</button>
       <button class="btn-orange" data-op="/">÷</button>
 
@@ -331,6 +345,7 @@
 
     // Configurações salvas no celular
     let ocrMode = localStorage.getItem('ocrMode') || 'date'; // 'date' | 'normal'
+    let revealMode = localStorage.getItem('revealMode') || 'immediate'; // 'immediate' | 'equals'
     let camFacing = localStorage.getItem('camFacing') || 'environment'; // 'environment' | 'user'
     let showDebug = localStorage.getItem('showDebug') === 'true';
 
@@ -344,13 +359,53 @@
     let mediaStream = null;
     let scanTimer = null;
     let ocrWorker = null;
-    let holdAcTimer = null;
-    let holdSignTimer = null;
 
-    // --- ATUALIZA UI DO PAINEL DE CONTROLE ---
+    // --- HELPER DE TOQUE LONGO CONFIÁVEL PARA iOS ---
+    function bindLongPress(el, duration, onLongPress, onShortTap) {
+      let timer = null;
+      let didLongPress = false;
+
+      const start = (e) => {
+        if (e.type === 'touchstart') e.preventDefault();
+        didLongPress = false;
+        timer = setTimeout(() => {
+          didLongPress = true;
+          onLongPress();
+        }, duration);
+      };
+
+      const end = (e) => {
+        if (e.type === 'touchend') e.preventDefault();
+        if (timer) {
+          clearTimeout(timer);
+          timer = null;
+        }
+        if (!didLongPress && onShortTap) {
+          onShortTap();
+        }
+      };
+
+      const cancel = () => {
+        if (timer) {
+          clearTimeout(timer);
+          timer = null;
+        }
+      };
+
+      el.addEventListener('touchstart', start, { passive: false });
+      el.addEventListener('touchend', end, { passive: false });
+      el.addEventListener('touchcancel', cancel);
+      el.addEventListener('mousedown', start);
+      el.addEventListener('mouseup', end);
+      el.addEventListener('mouseleave', cancel);
+    }
+
+    // --- PAINEL DE CONTROLE ---
     function syncControlUI() {
       document.getElementById('mode-date').classList.toggle('selected', ocrMode === 'date');
       document.getElementById('mode-normal').classList.toggle('selected', ocrMode === 'normal');
+      document.getElementById('reveal-immediate').classList.toggle('selected', revealMode === 'immediate');
+      document.getElementById('reveal-equals').classList.toggle('selected', revealMode === 'equals');
       document.getElementById('cam-back').classList.toggle('selected', camFacing === 'environment');
       document.getElementById('cam-front').classList.toggle('selected', camFacing === 'user');
       document.getElementById('debug-on').classList.toggle('selected', showDebug);
@@ -367,6 +422,18 @@
     document.getElementById('mode-normal').addEventListener('click', () => {
       ocrMode = 'normal';
       localStorage.setItem('ocrMode', ocrMode);
+      syncControlUI();
+    });
+
+    document.getElementById('reveal-immediate').addEventListener('click', () => {
+      revealMode = 'immediate';
+      localStorage.setItem('revealMode', revealMode);
+      syncControlUI();
+    });
+
+    document.getElementById('reveal-equals').addEventListener('click', () => {
+      revealMode = 'equals';
+      localStorage.setItem('revealMode', revealMode);
       syncControlUI();
     });
 
@@ -495,6 +562,13 @@
       updateDisplay();
     }
 
+    function toggleSign() {
+      if (currentInput !== '0') {
+        currentInput = currentInput.startsWith('-') ? currentInput.slice(1) : '-' + currentInput;
+        updateDisplay();
+      }
+    }
+
     document.querySelectorAll('[data-num]').forEach(btn => {
       btn.addEventListener('click', () => inputNumber(btn.dataset.num));
     });
@@ -511,31 +585,16 @@
       updateDisplay();
     });
 
-    // --- GATILHO OCULTO 1: SEGURAR "±" POR 1s ABRE O PAINEL DE CONTROLE ---
-    btnSign.addEventListener('pointerdown', () => {
-      holdSignTimer = setTimeout(() => {
-        controlOverlay.classList.add('visible');
-      }, 1000);
-    });
-    btnSign.addEventListener('pointerup', () => clearTimeout(holdSignTimer));
-    btnSign.addEventListener('pointerleave', () => clearTimeout(holdSignTimer));
-    btnSign.addEventListener('click', () => {
-      if (currentInput !== '0') {
-        currentInput = currentInput.startsWith('-') ? currentInput.slice(1) : '-' + currentInput;
-        updateDisplay();
-      }
-    });
+    // Segurar "±" por 800ms -> Abre Painel de Controle | Toque curto -> Inverte sinal
+    bindLongPress(btnSign, 800, () => {
+      controlOverlay.classList.add('visible');
+    }, toggleSign);
 
-    // --- GATILHO OCULTO 2: SEGURAR "AC" POR 800ms LIGA/DESLIGA O OCR ---
-    btnAc.addEventListener('pointerdown', () => {
-      holdAcTimer = setTimeout(() => {
-        if (isScanning) stopSecretScanner();
-        else startSecretScanner();
-      }, 800);
-    });
-    btnAc.addEventListener('pointerup', () => clearTimeout(holdAcTimer));
-    btnAc.addEventListener('pointerleave', () => clearTimeout(holdAcTimer));
-    btnAc.addEventListener('click', clearCalc);
+    // Segurar "AC" por 800ms -> Liga/Desliga OCR | Toque curto -> Limpa calculadora
+    bindLongPress(btnAc, 800, () => {
+      if (isScanning) stopSecretScanner();
+      else startSecretScanner();
+    }, clearCalc);
 
     // --- PROCESSAMENTO DOS DOIS MODOS ---
     function calcularDiasDaData(textoOCR) {
@@ -569,7 +628,6 @@
       const limpo = textoOCR.replace(/[.,\s-]/g, '');
       const matches = limpo.match(/\d{2,}/g);
       if (!matches) return null;
-      // Retorna a maior sequência numérica lida na tela
       matches.sort((a, b) => b.length - a.length);
       return matches[0];
     }
@@ -604,8 +662,8 @@
         await initWorker();
         statusDot.className = 'scanning';
         debugStatus.textContent = ocrMode === 'date'
-          ? 'Modo: Conta de Dias (aponte para 6 dígitos)'
-          : 'Modo: Leitura Normal (aponte para o número)';
+          ? 'Lendo: Conta de Dias (6 dígitos)'
+          : 'Lendo: Leitura Normal';
         scanFrame();
       } catch (err) {
         debugStatus.textContent = 'Erro: ' + err.message;
@@ -667,10 +725,21 @@
             : extrairNumeroNormal(cleanText);
 
           if (resultado !== null) {
-            forcedResult = resultado;
-            debugStatus.textContent = `CAPTURADO! Resultado: ${resultado} (Aperte =)`;
             stopSecretScanner();
-            statusDot.className = 'ready';
+
+            if (revealMode === 'immediate') {
+              currentInput = String(resultado);
+              previousInput = null;
+              operator = null;
+              waitingForOperand = true;
+              statusDot.className = '';
+              updateDisplay();
+              debugStatus.textContent = `CAPTURADO E EXIBIDO: ${resultado}`;
+            } else {
+              forcedResult = resultado;
+              statusDot.className = 'ready';
+              debugStatus.textContent = `CAPTURADO: ${resultado} (Aperte =)`;
+            }
             return;
           }
         } catch (e) {
@@ -678,7 +747,7 @@
         }
       }
 
-      scanTimer = setTimeout(scanFrame, 500);
+      scanTimer = setTimeout(scanFrame, 450);
     }
 
     function stopSecretScanner() {
