@@ -50,6 +50,7 @@
       display: none;
     }
 
+    /* --- TELA 1: CALCULADORA --- */
     .calculator {
       position: relative;
       z-index: 2;
@@ -96,7 +97,7 @@
       transition: filter 0.1s ease;
     }
 
-    #btn-ac, #btn-sign {
+    #btn-ac, #btn-sign, #btn-percent, #dial-star, #dial-zero, #dial-hash {
       touch-action: none;
     }
 
@@ -124,6 +125,85 @@
       padding-left: 30px;
     }
 
+    /* --- TELA 2: DISCADOR FAKE iOS --- */
+    .dialer {
+      position: relative;
+      z-index: 2;
+      background-color: #000;
+      display: none;
+      flex-direction: column;
+      justify-content: flex-end;
+      height: 100dvh;
+      max-width: 430px;
+      margin: 0 auto;
+      padding: 20px 34px calc(34px + env(safe-area-inset-bottom));
+    }
+
+    .dialer-display {
+      text-align: center;
+      font-size: 38px;
+      font-weight: 400;
+      letter-spacing: 1px;
+      min-height: 54px;
+      margin-bottom: 24px;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: clip;
+    }
+
+    .dialer-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px 22px;
+      justify-items: center;
+    }
+
+    .dial-btn {
+      width: 78px;
+      height: 78px;
+      border-radius: 50%;
+      background-color: #333333;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+    }
+
+    .dial-num {
+      font-size: 34px;
+      font-weight: 400;
+    }
+
+    .dial-letters {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      margin-top: 3px;
+      color: #e5e5ea;
+    }
+
+    .dial-call {
+      background-color: #30d158;
+      width: 78px;
+      height: 78px;
+    }
+
+    .dial-clear {
+      background: transparent;
+      width: 78px;
+      height: 78px;
+      color: #8e8e93;
+      font-size: 24px;
+    }
+
+    .dial-spacer {
+      width: 78px;
+      height: 78px;
+    }
+
+    /* --- INDICADOR DISCRETO --- */
     #status-dot {
       position: fixed;
       z-index: 10;
@@ -139,8 +219,10 @@
     #status-dot.loading { background-color: #555; }
     #status-dot.scanning-local { background-color: #30d158; } /* Verde: OCR local */
     #status-dot.scanning-api { background-color: #0a84ff; }   /* Azul: Fallback API */
+    #status-dot.listening { background-color: #bf5af2; }      /* Roxo: Ouvindo voz */
     #status-dot.ready { background-color: #ff9f0a; }          /* Laranja: Capturado */
 
+    /* --- PAINEL DE TESTE (DEBUG) --- */
     #debug-panel {
       display: none;
       position: fixed;
@@ -152,7 +234,7 @@
       border: 1px solid #444;
       border-radius: 12px;
       padding: 10px;
-      font-size: 13px;
+      font-size: 12px;
       color: #0f0;
     }
 
@@ -162,7 +244,7 @@
 
     #debug-preview {
       width: 100%;
-      height: 110px;
+      height: 95px;
       object-fit: contain;
       background: #111;
       border: 1px solid #333;
@@ -170,6 +252,7 @@
       display: block;
     }
 
+    /* --- PAINEL DE CONTROLE OCULTO --- */
     #control-overlay {
       display: none;
       position: fixed;
@@ -180,7 +263,7 @@
       -webkit-backdrop-filter: blur(8px);
       align-items: center;
       justify-content: center;
-      padding: 16px;
+      padding: 14px;
     }
 
     #control-overlay.visible {
@@ -189,43 +272,43 @@
 
     .control-box {
       width: 100%;
-      max-width: 360px;
-      max-height: 88dvh;
+      max-width: 370px;
+      max-height: 90dvh;
       overflow-y: auto;
       background: #1c1c1e;
       border: 1px solid #333;
       border-radius: 18px;
-      padding: 18px;
+      padding: 16px;
       color: #fff;
     }
 
     .control-box h2 {
       font-size: 17px;
       font-weight: 600;
-      margin-bottom: 14px;
+      margin-bottom: 12px;
       text-align: center;
       color: #ff9f0a;
     }
 
     .control-group {
-      margin-bottom: 13px;
+      margin-bottom: 12px;
     }
 
     .control-label {
       display: block;
       font-size: 12px;
       color: #aaa;
-      margin-bottom: 6px;
+      margin-bottom: 5px;
     }
 
     .api-input {
       width: 100%;
-      padding: 10px 12px;
+      padding: 9px 11px;
       border-radius: 10px;
       border: 1px solid #3a3a3c;
       background: #2c2c2e;
       color: #fff;
-      font-size: 14px;
+      font-size: 13px;
       outline: none;
     }
 
@@ -236,20 +319,20 @@
     .option-row {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 8px;
+      gap: 7px;
     }
 
     .option-row-3 {
       display: grid;
       grid-template-columns: 1fr 1fr 1fr;
-      gap: 8px;
+      gap: 7px;
     }
 
     .ctrl-btn {
       aspect-ratio: auto;
       border-radius: 10px;
-      padding: 10px 8px;
-      font-size: 13px;
+      padding: 9px 6px;
+      font-size: 12px;
       font-weight: 500;
       background: #2c2c2e;
       color: #ccc;
@@ -267,12 +350,12 @@
       width: 100%;
       aspect-ratio: auto;
       border-radius: 12px;
-      padding: 13px;
+      padding: 12px;
       font-size: 15px;
       font-weight: 600;
       background: #333;
       color: #fff;
-      margin-top: 6px;
+      margin-top: 4px;
     }
   </style>
 </head>
@@ -283,35 +366,54 @@
   <canvas id="ocr-canvas"></canvas>
   <div id="status-dot"></div>
 
+  <!-- Painel de Teste (Debug) -->
   <div id="debug-panel">
-    <div id="debug-status">Status: Parado (Segure AC para ler)</div>
+    <div id="debug-status">Status: Parado</div>
     <div id="debug-text">Leitura: —</div>
     <img id="debug-preview" alt="" />
   </div>
 
+  <!-- Painel de Controle Oculto -->
   <div id="control-overlay">
     <div class="control-box">
       <h2>Painel de Controle</h2>
 
       <div class="control-group">
-        <span class="control-label">Chave API Gemini (usada só se o OCR local falhar)</span>
-        <input type="password" id="api-key-input" class="api-input" placeholder="Opcional: cole sua chave AIza..." autocomplete="off" />
-      </div>
-
-      <div class="control-group">
-        <span class="control-label">Função do OCR</span>
+        <span class="control-label">Tela do App</span>
         <div class="option-row">
-          <button class="ctrl-btn" id="mode-date">Conta de Dias</button>
-          <button class="ctrl-btn" id="mode-normal">Leitura Normal</button>
+          <button class="ctrl-btn" id="skin-calc">Calculadora</button>
+          <button class="ctrl-btn" id="skin-dialer">Discador (Telefone)</button>
         </div>
       </div>
 
       <div class="control-group">
-        <span class="control-label">Revelação do Número</span>
+        <span class="control-label">Modo de Leitura (OCR e Voz)</span>
+        <div class="option-row-3">
+          <button class="ctrl-btn" id="mode-date">Conta Dias</button>
+          <button class="ctrl-btn" id="mode-normal">Nº Normal</button>
+          <button class="ctrl-btn" id="mode-t9">Palavra T9</button>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <span class="control-label">Revelação do Resultado</span>
         <div class="option-row">
           <button class="ctrl-btn" id="reveal-immediate">Imediata na Tela</button>
-          <button class="ctrl-btn" id="reveal-equals">Ao Clicar em =</button>
+          <button class="ctrl-btn" id="reveal-equals">Ao Clicar = / Ligar</button>
         </div>
+      </div>
+
+      <div class="control-group">
+        <span class="control-label">Voz: Frase ANTES e Frase DEPOIS</span>
+        <div class="option-row">
+          <input type="text" id="voice-start-input" class="api-input" placeholder="Ex: a data foi" />
+          <input type="text" id="voice-end-input" class="api-input" placeholder="Ex: correto" />
+        </div>
+      </div>
+
+      <div class="control-group">
+        <span class="control-label">Chave API Gemini (reforço se OCR local falhar)</span>
+        <input type="password" id="api-key-input" class="api-input" placeholder="Opcional: cole sua chave AIza..." autocomplete="off" />
       </div>
 
       <div class="control-group">
@@ -332,7 +434,7 @@
       </div>
 
       <div class="control-group">
-        <span class="control-label">Visor de Teste (Câmera + Leitura)</span>
+        <span class="control-label">Visor de Teste (Debug)</span>
         <div class="option-row">
           <button class="ctrl-btn" id="debug-off">Oculto</button>
           <button class="ctrl-btn" id="debug-on">Visível</button>
@@ -343,12 +445,13 @@
     </div>
   </div>
 
-  <div class="calculator">
+  <!-- TELA 1: CALCULADORA -->
+  <div class="calculator" id="calc-screen">
     <div class="display" id="display">0</div>
     <div class="buttons">
       <button class="btn-light" id="btn-ac">AC</button>
       <button class="btn-light" id="btn-sign">±</button>
-      <button class="btn-light" data-action="percent">%</button>
+      <button class="btn-light" id="btn-percent">%</button>
       <button class="btn-orange" data-op="/">÷</button>
 
       <button data-num="7">7</button>
@@ -372,10 +475,43 @@
     </div>
   </div>
 
+  <!-- TELA 2: DISCADOR FAKE iOS -->
+  <div class="dialer" id="dialer-screen">
+    <div class="dialer-display" id="dialer-display"></div>
+    <div class="dialer-grid">
+      <button class="dial-btn" data-dial="1"><span class="dial-num">1</span><span class="dial-letters">&nbsp;</span></button>
+      <button class="dial-btn" data-dial="2"><span class="dial-num">2</span><span class="dial-letters">A B C</span></button>
+      <button class="dial-btn" data-dial="3"><span class="dial-num">3</span><span class="dial-letters">D E F</span></button>
+
+      <button class="dial-btn" data-dial="4"><span class="dial-num">4</span><span class="dial-letters">G H I</span></button>
+      <button class="dial-btn" data-dial="5"><span class="dial-num">5</span><span class="dial-letters">J K L</span></button>
+      <button class="dial-btn" data-dial="6"><span class="dial-num">6</span><span class="dial-letters">M N O</span></button>
+
+      <button class="dial-btn" data-dial="7"><span class="dial-num">7</span><span class="dial-letters">P Q R S</span></button>
+      <button class="dial-btn" data-dial="8"><span class="dial-num">8</span><span class="dial-letters">T U V</span></button>
+      <button class="dial-btn" data-dial="9"><span class="dial-num">9</span><span class="dial-letters">W X Y Z</span></button>
+
+      <button class="dial-btn" id="dial-star"><span class="dial-num">*</span></button>
+      <button class="dial-btn" id="dial-zero"><span class="dial-num">0</span><span class="dial-letters">+</span></button>
+      <button class="dial-btn" id="dial-hash"><span class="dial-num">#</span></button>
+
+      <div class="dial-spacer"></div>
+      <button class="dial-btn dial-call" id="dial-call-btn">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="#ffffff"><path d="M6.62 10.79a15.05 15.05 0 006.59 6.59l2.2-2.2a1 1 0 011.01-.24c1.12.37 2.33.57 3.58.57a1 1 0 011 1V20a1 1 0 01-1 1C10.61 21 3 13.39 3 4a1 1 0 011-1h3.5a1 1 0 011 1c0 1.25.2 2.46.57 3.58a1 1 0 01-.25 1.01l-2.2 2.2z"/></svg>
+      </button>
+      <button class="dial-clear" id="dial-back-btn">⌫</button>
+    </div>
+  </div>
+
   <script>
+    // --- ELEMENTOS ---
+    const calcScreen = document.getElementById('calc-screen');
+    const dialerScreen = document.getElementById('dialer-screen');
     const displayEl = document.getElementById('display');
+    const dialerDisplayEl = document.getElementById('dialer-display');
     const btnAc = document.getElementById('btn-ac');
     const btnSign = document.getElementById('btn-sign');
+    const btnPercent = document.getElementById('btn-percent');
     const statusDot = document.getElementById('status-dot');
     const debugPanel = document.getElementById('debug-panel');
     const debugStatus = document.getElementById('debug-status');
@@ -383,30 +519,43 @@
     const debugPreview = document.getElementById('debug-preview');
     const controlOverlay = document.getElementById('control-overlay');
     const apiKeyInput = document.getElementById('api-key-input');
+    const voiceStartInput = document.getElementById('voice-start-input');
+    const voiceEndInput = document.getElementById('voice-end-input');
 
-    let geminiApiKey = localStorage.getItem('geminiApiKey') || '';
-    let ocrMode = localStorage.getItem('ocrMode') || 'date';
+    // --- CONFIGURAÇÕES SALVAS ---
+    let appSkin = localStorage.getItem('appSkin') || 'calc'; // 'calc' | 'dialer'
+    let ocrMode = localStorage.getItem('ocrMode') || 'date'; // 'date' | 'normal' | 't9'
     let revealMode = localStorage.getItem('revealMode') || 'immediate';
     let zoomLevel = Number(localStorage.getItem('zoomLevel')) || 1;
     let camFacing = localStorage.getItem('camFacing') || 'environment';
     let showDebug = localStorage.getItem('showDebug') === 'true';
+    let geminiApiKey = localStorage.getItem('geminiApiKey') || '';
+    let voiceStartPhrase = localStorage.getItem('voiceStartPhrase') || 'a data foi';
+    let voiceEndPhrase = localStorage.getItem('voiceEndPhrase') || 'correto';
 
     apiKeyInput.value = geminiApiKey;
+    voiceStartInput.value = voiceStartPhrase;
+    voiceEndInput.value = voiceEndPhrase;
 
+    // --- ESTADO ---
     let currentInput = '0';
     let previousInput = null;
     let operator = null;
     let waitingForOperand = false;
+    let dialerValue = '';
 
     let forcedResult = null;
     let isScanning = false;
+    let isListening = false;
     let mediaStream = null;
     let scanTimer = null;
     let ocrWorker = null;
+    let recognition = null;
     let hardwareZoomApplied = false;
     let localFails = 0;
     const MAX_LOCAL_TRIES_BEFORE_API = 3;
 
+    // --- HELPER TOQUE LONGO ---
     function bindLongPress(el, duration, onLongPress, onShortTap) {
       let timer = null;
       let didLongPress = false;
@@ -426,16 +575,11 @@
           clearTimeout(timer);
           timer = null;
         }
-        if (!didLongPress && onShortTap) {
-          onShortTap();
-        }
+        if (!didLongPress && onShortTap) onShortTap();
       };
 
       const cancel = () => {
-        if (timer) {
-          clearTimeout(timer);
-          timer = null;
-        }
+        if (timer) { clearTimeout(timer); timer = null; }
       };
 
       el.addEventListener('touchstart', start, { passive: false });
@@ -446,9 +590,23 @@
       el.addEventListener('mouseleave', cancel);
     }
 
+    // --- PAINEL DE CONTROLE ---
+    function openControlPanel() {
+      apiKeyInput.value = geminiApiKey;
+      voiceStartInput.value = voiceStartPhrase;
+      voiceEndInput.value = voiceEndPhrase;
+      controlOverlay.classList.add('visible');
+    }
+
     function syncControlUI() {
+      calcScreen.style.display = appSkin === 'calc' ? 'flex' : 'none';
+      dialerScreen.style.display = appSkin === 'dialer' ? 'flex' : 'none';
+
+      document.getElementById('skin-calc').classList.toggle('selected', appSkin === 'calc');
+      document.getElementById('skin-dialer').classList.toggle('selected', appSkin === 'dialer');
       document.getElementById('mode-date').classList.toggle('selected', ocrMode === 'date');
       document.getElementById('mode-normal').classList.toggle('selected', ocrMode === 'normal');
+      document.getElementById('mode-t9').classList.toggle('selected', ocrMode === 't9');
       document.getElementById('reveal-immediate').classList.toggle('selected', revealMode === 'immediate');
       document.getElementById('reveal-equals').classList.toggle('selected', revealMode === 'equals');
       document.getElementById('zoom-1').classList.toggle('selected', zoomLevel === 1);
@@ -461,11 +619,20 @@
       debugPanel.classList.toggle('visible', showDebug);
     }
 
+    document.getElementById('skin-calc').addEventListener('click', () => {
+      appSkin = 'calc'; localStorage.setItem('appSkin', appSkin); syncControlUI();
+    });
+    document.getElementById('skin-dialer').addEventListener('click', () => {
+      appSkin = 'dialer'; localStorage.setItem('appSkin', appSkin); syncControlUI();
+    });
     document.getElementById('mode-date').addEventListener('click', () => {
       ocrMode = 'date'; localStorage.setItem('ocrMode', ocrMode); syncControlUI();
     });
     document.getElementById('mode-normal').addEventListener('click', () => {
       ocrMode = 'normal'; localStorage.setItem('ocrMode', ocrMode); syncControlUI();
+    });
+    document.getElementById('mode-t9').addEventListener('click', () => {
+      ocrMode = 't9'; localStorage.setItem('ocrMode', ocrMode); syncControlUI();
     });
     document.getElementById('reveal-immediate').addEventListener('click', () => {
       revealMode = 'immediate'; localStorage.setItem('revealMode', revealMode); syncControlUI();
@@ -497,12 +664,45 @@
 
     document.getElementById('btn-close-panel').addEventListener('click', () => {
       geminiApiKey = apiKeyInput.value.trim();
+      voiceStartPhrase = voiceStartInput.value.trim();
+      voiceEndPhrase = voiceEndInput.value.trim();
       localStorage.setItem('geminiApiKey', geminiApiKey);
+      localStorage.setItem('voiceStartPhrase', voiceStartPhrase);
+      localStorage.setItem('voiceEndPhrase', voiceEndPhrase);
       controlOverlay.classList.remove('visible');
     });
 
     syncControlUI();
 
+    // --- EXIBIÇÃO DO RESULTADO EM QUALQUER TELA ---
+    function exibirResultadoNaTela(valor) {
+      if (appSkin === 'dialer') {
+        dialerValue = String(valor);
+        updateDialerDisplay();
+      } else {
+        currentInput = String(valor);
+        previousInput = null;
+        operator = null;
+        waitingForOperand = true;
+        updateDisplay();
+      }
+    }
+
+    function finalizarCaptura(resultado, origem) {
+      stopSecretScanner();
+      stopVoiceListener();
+      if (revealMode === 'immediate') {
+        exibirResultadoNaTela(resultado);
+        statusDot.className = '';
+        debugStatus.textContent = `CAPTURADO (${origem}): ${resultado}`;
+      } else {
+        forcedResult = resultado;
+        statusDot.className = 'ready';
+        debugStatus.textContent = `CAPTURADO (${origem}): ${resultado} (Aperte = ou Ligar)`;
+      }
+    }
+
+    // --- CALCULADORA ---
     function formatDisplay(valStr) {
       if (valStr === 'Erro') return 'Erro';
       const [intPart, decPart] = valStr.replace(',', '.').split('.');
@@ -523,22 +723,13 @@
 
     function inputNumber(num) {
       if (num === ',') {
-        if (waitingForOperand) {
-          currentInput = '0,';
-          waitingForOperand = false;
-        } else if (!currentInput.includes(',')) {
-          currentInput += ',';
-        }
+        if (waitingForOperand) { currentInput = '0,'; waitingForOperand = false; }
+        else if (!currentInput.includes(',')) currentInput += ',';
         updateDisplay();
         return;
       }
-
-      if (waitingForOperand) {
-        currentInput = num;
-        waitingForOperand = false;
-      } else {
-        currentInput = currentInput === '0' ? num : currentInput + num;
-      }
+      if (waitingForOperand) { currentInput = num; waitingForOperand = false; }
+      else currentInput = currentInput === '0' ? num : currentInput + num;
       updateDisplay();
     }
 
@@ -568,16 +759,11 @@
 
     function handleEquals() {
       if (forcedResult !== null) {
-        currentInput = String(forcedResult);
-        previousInput = null;
-        operator = null;
-        waitingForOperand = true;
+        exibirResultadoNaTela(forcedResult);
         forcedResult = null;
         statusDot.className = '';
-        updateDisplay();
         return;
       }
-
       if (operator && previousInput !== null) {
         const inputValue = parseFloat(currentInput.replace(',', '.'));
         const result = performCalculation(previousInput, inputValue, operator);
@@ -590,10 +776,7 @@
     }
 
     function clearCalc() {
-      currentInput = '0';
-      previousInput = null;
-      operator = null;
-      waitingForOperand = false;
+      currentInput = '0'; previousInput = null; operator = null; waitingForOperand = false;
       updateDisplay();
     }
 
@@ -604,6 +787,12 @@
       }
     }
 
+    function calcPercent() {
+      const val = parseFloat(currentInput.replace(',', '.')) / 100;
+      currentInput = String(val).replace('.', ',');
+      updateDisplay();
+    }
+
     document.querySelectorAll('[data-num]').forEach(btn => {
       btn.addEventListener('click', () => inputNumber(btn.dataset.num));
     });
@@ -611,54 +800,127 @@
       btn.addEventListener('click', () => handleOperator(btn.dataset.op));
     });
     document.getElementById('btn-eq').addEventListener('click', handleEquals);
-    document.querySelector('[data-action="percent"]').addEventListener('click', () => {
-      const val = parseFloat(currentInput.replace(',', '.')) / 100;
-      currentInput = String(val).replace('.', ',');
-      updateDisplay();
+
+    // Gatilhos da Calculadora
+    bindLongPress(btnSign, 800, openControlPanel, toggleSign);
+    bindLongPress(btnAc, 800, () => { isScanning ? stopSecretScanner() : startSecretScanner(); }, clearCalc);
+    bindLongPress(btnPercent, 800, () => { isListening ? stopVoiceListener() : startVoiceListener(); }, calcPercent);
+
+    // --- DISCADOR FAKE ---
+    function updateDialerDisplay() {
+      dialerDisplayEl.textContent = dialerValue;
+      dialerDisplayEl.style.fontSize = dialerValue.length > 11 ? '28px' : '38px';
+    }
+
+    function appendDialer(char) {
+      if (dialerValue.length < 18) {
+        dialerValue += char;
+        updateDialerDisplay();
+      }
+    }
+
+    document.querySelectorAll('[data-dial]').forEach(btn => {
+      btn.addEventListener('click', () => appendDialer(btn.dataset.dial));
     });
 
-    bindLongPress(btnSign, 800, () => {
-      apiKeyInput.value = geminiApiKey;
-      controlOverlay.classList.add('visible');
-    }, toggleSign);
+    document.getElementById('dial-back-btn').addEventListener('click', () => {
+      dialerValue = dialerValue.slice(0, -1);
+      updateDialerDisplay();
+    });
 
-    bindLongPress(btnAc, 800, () => {
-      if (isScanning) stopSecretScanner();
-      else startSecretScanner();
-    }, clearCalc);
+    document.getElementById('dial-call-btn').addEventListener('click', () => {
+      if (forcedResult !== null) {
+        exibirResultadoNaTela(forcedResult);
+        forcedResult = null;
+        statusDot.className = '';
+      }
+    });
 
-    // --- EXTRAÇÃO E CÁLCULO ---
+    // Gatilhos do Discador
+    bindLongPress(document.getElementById('dial-star'), 800, openControlPanel, () => appendDialer('*'));
+    bindLongPress(document.getElementById('dial-zero'), 800, () => { isScanning ? stopSecretScanner() : startSecretScanner(); }, () => appendDialer('0'));
+    bindLongPress(document.getElementById('dial-hash'), 800, () => { isListening ? stopVoiceListener() : startVoiceListener(); }, () => appendDialer('#'));
+
+    // --- CONVERSORES (T9, DATA, NÚMERO) ---
+    function normalizarTexto(str) {
+      return str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    }
+
+    function palavraParaT9(texto) {
+      const limpo = normalizarTexto(texto).replace(/[^a-z]/g, '');
+      if (limpo.length < 2) return null;
+      const mapa = {
+        a:'2', b:'2', c:'2',
+        d:'3', e:'3', f:'3',
+        g:'4', h:'4', i:'4',
+        j:'5', k:'5', l:'5',
+        m:'6', n:'6', o:'6',
+        p:'7', q:'7', r:'7', s:'7',
+        t:'8', u:'8', v:'8',
+        w:'9', x:'9', y:'9', z:'9'
+      };
+      return limpo.split('').map(ch => mapa[ch] || '').join('');
+    }
+
+    function calcularDiasDeValores(dia, mes, ano) {
+      const hoje = new Date();
+      const anoAtualCurto = hoje.getFullYear() % 100;
+      let anoCompleto = ano;
+      if (ano < 100) {
+        anoCompleto = ano > anoAtualCurto ? 1900 + ano : 2000 + ano;
+      }
+      if (dia < 1 || dia > 31 || mes < 1 || mes > 12) return null;
+      const dataAlvo = new Date(anoCompleto, mes - 1, dia);
+      if (dataAlvo.getDate() !== dia || dataAlvo.getMonth() !== mes - 1) return null;
+
+      const hojeZerado = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+      const diffMs = Math.abs(hojeZerado - dataAlvo);
+      return Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    }
+
     function calcularDiasDaData(texto) {
+      // 1. Tenta formato por extenso ou com barras/espaços (ex: "5 de dezembro de 1940" ou "05/12/40")
+      const norm = normalizarTexto(texto);
+      const meses = {
+        janeiro:1, jan:1, fevereiro:2, fev:2, marco:3, mar:3, abril:4, abr:4,
+        maio:5, mai:5, junho:6, jun:6, julho:7, jul:7, agosto:8, ago:8,
+        setembro:9, set:9, outubro:10, out:10, novembro:11, nov:11, dezembro:12, dez:12
+      };
+
+      const regexExtenso = /(\d{1,2})\s*(?:de\s*)?([a-z]+)\s*(?:de\s*)?(\d{2,4})/;
+      const mExt = norm.match(regexExtenso);
+      if (mExt && meses[mExt[2]]) {
+        const res = calcularDiasDeValores(parseInt(mExt[1], 10), meses[mExt[2]], parseInt(mExt[3], 10));
+        if (res !== null) return res;
+      }
+
+      const regexBarras = /(\d{1,2})[\/\-.\s]+(\d{1,2})[\/\-.\s]+(\d{2,4})/;
+      const mBar = norm.match(regexBarras);
+      if (mBar) {
+        const res = calcularDiasDeValores(parseInt(mBar[1], 10), parseInt(mBar[2], 10), parseInt(mBar[3], 10));
+        if (res !== null) return res;
+      }
+
+      // 2. Tenta dígitos seguidos (5 a 8 dígitos, ex: 51240 ou 210479)
       const semSeparadores = texto.replace(/[.,]/g, '');
       const candidatos = semSeparadores.match(/\d{5,8}/g);
       if (!candidatos) return null;
 
-      const hoje = new Date();
-      const anoAtualCurto = hoje.getFullYear() % 100;
-
       for (const limpo of candidatos) {
-        let dia, mes, anoCompleto;
+        let dia, mes, ano;
         if (limpo.length === 5 || limpo.length === 6) {
           const seis = limpo.padStart(6, '0');
           dia = parseInt(seis.slice(0, 2), 10);
           mes = parseInt(seis.slice(2, 4), 10);
-          const anoCurto = parseInt(seis.slice(4, 6), 10);
-          anoCompleto = anoCurto > anoAtualCurto ? 1900 + anoCurto : 2000 + anoCurto;
+          ano = parseInt(seis.slice(4, 6), 10);
         } else {
           const oito = limpo.padStart(8, '0');
           dia = parseInt(oito.slice(0, 2), 10);
           mes = parseInt(oito.slice(2, 4), 10);
-          anoCompleto = parseInt(oito.slice(4, 8), 10);
+          ano = parseInt(oito.slice(4, 8), 10);
         }
-
-        if (dia < 1 || dia > 31 || mes < 1 || mes > 12) continue;
-
-        const dataAlvo = new Date(anoCompleto, mes - 1, dia);
-        if (dataAlvo.getDate() !== dia || dataAlvo.getMonth() !== mes - 1) continue;
-
-        const hojeZerado = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
-        const diffMs = Math.abs(hojeZerado - dataAlvo);
-        return Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        const res = calcularDiasDeValores(dia, mes, ano);
+        if (res !== null) return res;
       }
       return null;
     }
@@ -671,20 +933,92 @@
       return candidatos[0];
     }
 
-    function finalizarCaptura(resultado, origem) {
+    function processarTextoCapturado(texto) {
+      if (ocrMode === 't9') return palavraParaT9(texto);
+      if (ocrMode === 'date') return calcularDiasDaData(texto);
+      return extrairNumeroNormal(texto);
+    }
+
+    // --- INPUT POR VOZ (COM FRASES ANTES E DEPOIS) ---
+    function startVoiceListener() {
       stopSecretScanner();
-      if (revealMode === 'immediate') {
-        currentInput = String(resultado);
-        previousInput = null;
-        operator = null;
-        waitingForOperand = true;
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        debugStatus.textContent = 'Voz não suportada neste navegador.';
+        return;
+      }
+
+      isListening = true;
+      forcedResult = null;
+      statusDot.className = 'listening';
+      debugStatus.textContent = `Ouvindo... Diga "${voiceStartPhrase}" ... "${voiceEndPhrase}"`;
+
+      recognition = new SpeechRecognition();
+      recognition.lang = 'pt-BR';
+      recognition.continuous = true;
+      recognition.interimResults = true;
+
+      recognition.onresult = (event) => {
+        if (!isListening) return;
+        let transcript = '';
+        for (let i = 0; i < event.results.length; i++) {
+          transcript += event.results[i][0].transcript + ' ';
+        }
+
+        debugText.textContent = 'Voz: ' + transcript.trim();
+
+        const normFull = normalizarTexto(transcript);
+        const normStart = normalizarTexto(voiceStartPhrase);
+        const normEnd = normalizarTexto(voiceEndPhrase);
+
+        if (normStart && normEnd) {
+          const idxStart = normFull.indexOf(normStart);
+          if (idxStart !== -1) {
+            const afterStart = idxStart + normStart.length;
+            const idxEnd = normFull.indexOf(normEnd, afterStart);
+            if (idxEnd !== -1) {
+              const miolo = transcript.slice(afterStart, idxEnd).trim();
+              const resultado = processarTextoCapturado(miolo);
+              if (resultado !== null) {
+                finalizarCaptura(resultado, 'Voz');
+              }
+            }
+          }
+        } else {
+          // Se o usuário deixar frases em branco, tenta capturar direto
+          const resultado = processarTextoCapturado(transcript);
+          if (resultado !== null) {
+            finalizarCaptura(resultado, 'Voz');
+          }
+        }
+      };
+
+      recognition.onerror = (e) => {
+        debugStatus.textContent = 'Erro Voz: ' + e.error;
+        stopVoiceListener();
+      };
+
+      recognition.onend = () => {
+        if (isListening) {
+          try { recognition.start(); } catch (e) { stopVoiceListener(); }
+        }
+      };
+
+      try {
+        recognition.start();
+      } catch (e) {
+        stopVoiceListener();
+      }
+    }
+
+    function stopVoiceListener() {
+      isListening = false;
+      if (recognition) {
+        try { recognition.stop(); } catch (e) {}
+        recognition = null;
+      }
+      if (forcedResult === null && !isScanning) {
         statusDot.className = '';
-        updateDisplay();
-        debugStatus.textContent = `CAPTURADO (${origem}): ${resultado}`;
-      } else {
-        forcedResult = resultado;
-        statusDot.className = 'ready';
-        debugStatus.textContent = `CAPTURADO (${origem}): ${resultado} (Aperte =)`;
       }
     }
 
@@ -692,9 +1026,13 @@
     async function initLocalWorker() {
       if (!ocrWorker && typeof Tesseract !== 'undefined') {
         debugStatus.textContent = 'Preparando OCR local...';
-        ocrWorker = await Tesseract.createWorker('eng');
+        ocrWorker = await Tesseract.createWorker(ocrMode === 't9' ? 'por' : 'eng');
+      }
+      if (ocrWorker) {
         await ocrWorker.setParameters({
-          tessedit_char_whitelist: '0123456789., '
+          tessedit_char_whitelist: ocrMode === 't9'
+            ? 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz '
+            : '0123456789., '
         });
       }
     }
@@ -720,7 +1058,6 @@
       for (let i = 0; i < data.length; i += 4) {
         let gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
         if (isDarkBg) gray = 255 - gray;
-        // Contraste suave (mantém traços finos sem apagar)
         gray = Math.min(255, Math.max(0, (gray - 128) * 1.6 + 128));
         data[i] = data[i + 1] = data[i + 2] = gray;
       }
@@ -730,9 +1067,14 @@
 
     // --- MOTOR 2: FALLBACK API GEMINI ---
     async function consultarGemini(base64Jpeg) {
-      const prompt = ocrMode === 'date'
-        ? "Encontre a tela de outro celular com uma calculadora aberta nesta foto (mesmo longe ou inclinada). Leia APENAS o número grande no visor principal de resultado (geralmente 5 a 8 dígitos como 51240, 210479 ou 5121940). IGNORE COMPLETAMENTE os botões do teclado (0 a 9), relógio e bateria. Responda SOMENTE com os dígitos puros do visor. Se não houver número legível, responda: NONE"
-        : "Encontre a tela de outro celular com uma calculadora aberta ou número em destaque. Leia APENAS o número grande no visor principal de resultado. IGNORE COMPLETAMENTE os botões do teclado (0 a 9), relógio e bateria. Responda SOMENTE com os dígitos puros do visor. Se não houver número legível, responda: NONE";
+      let prompt = '';
+      if (ocrMode === 't9') {
+        prompt = "Encontre a palavra principal escrita em um papel ou na tela de um celular nesta foto. Responda SOMENTE com essa palavra (apenas letras, sem explicações). Se não houver palavra legível, responda: NONE";
+      } else if (ocrMode === 'date') {
+        prompt = "Encontre a tela de outro celular com uma calculadora aberta nesta foto (mesmo longe ou inclinada). Leia APENAS o número grande no visor principal de resultado (geralmente 5 a 8 dígitos como 51240, 210479 ou 5121940). IGNORE COMPLETAMENTE os botões do teclado (0 a 9), relógio e bateria. Responda SOMENTE com os dígitos puros do visor. Se não houver número legível, responda: NONE";
+      } else {
+        prompt = "Encontre a tela de outro celular com uma calculadora aberta ou número em destaque. Leia APENAS o número grande no visor principal de resultado. IGNORE COMPLETAMENTE os botões do teclado (0 a 9), relógio e bateria. Responda SOMENTE com os dígitos puros do visor. Se não houver número legível, responda: NONE";
+      }
 
       const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(geminiApiKey)}`;
 
@@ -751,16 +1093,14 @@
       });
 
       const json = await res.json();
-      if (!res.ok) {
-        throw new Error(json.error?.message || `HTTP ${res.status}`);
-      }
+      if (!res.ok) throw new Error(json.error?.message || `HTTP ${res.status}`);
 
-      const raw = json.candidates?.[0]?.content?.parts?.[0]?.text || 'NONE';
-      return raw.trim();
+      return (json.candidates?.[0]?.content?.parts?.[0]?.text || 'NONE').trim();
     }
 
-    // --- LOOP HÍBRIDO DE LEITURA ---
+    // --- LOOP HÍBRIDO DE CÂMERA ---
     async function startSecretScanner() {
+      stopVoiceListener();
       if (isScanning) return;
       isScanning = true;
       forcedResult = null;
@@ -771,11 +1111,7 @@
 
       try {
         mediaStream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: camFacing,
-            width: { ideal: 1920 },
-            height: { ideal: 1080 }
-          },
+          video: { facingMode: camFacing, width: { ideal: 1920 }, height: { ideal: 1080 } },
           audio: false
         });
 
@@ -826,11 +1162,8 @@
         ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, outW, outH);
 
         const dataUrl = colorCanvas.toDataURL('image/jpeg', 0.88);
-        if (showDebug) {
-          debugPreview.src = dataUrl;
-        }
+        if (showDebug) debugPreview.src = dataUrl;
 
-        // Decide se tenta OCR Local ou Fallback para API Gemini
         const usarApiAgora = geminiApiKey && localFails >= MAX_LOCAL_TRIES_BEFORE_API;
 
         if (!usarApiAgora && ocrWorker) {
@@ -843,10 +1176,7 @@
             const cleanText = text.trim();
             debugText.textContent = 'Local leu: ' + (cleanText || '(nada)');
 
-            const resultado = ocrMode === 'date'
-              ? calcularDiasDaData(cleanText)
-              : extrairNumeroNormal(cleanText);
-
+            const resultado = processarTextoCapturado(cleanText);
             if (resultado !== null) {
               finalizarCaptura(resultado, 'Local');
               return;
@@ -866,10 +1196,7 @@
             debugText.textContent = 'API leu: ' + respostaIA;
 
             if (respostaIA && !respostaIA.toUpperCase().includes('NONE')) {
-              const resultado = ocrMode === 'date'
-                ? calcularDiasDaData(respostaIA)
-                : extrairNumeroNormal(respostaIA);
-
+              const resultado = processarTextoCapturado(respostaIA);
               if (resultado !== null) {
                 finalizarCaptura(resultado, 'API');
                 return;
@@ -879,7 +1206,6 @@
             debugText.textContent = 'Erro API: ' + e.message;
           }
 
-          // Reinicia o ciclo para tentar o local rápido de novo antes da próxima chamada à API
           localFails = 0;
         }
       }
@@ -896,7 +1222,7 @@
         mediaStream.getTracks().forEach(track => track.stop());
         mediaStream = null;
       }
-      if (forcedResult === null) {
+      if (forcedResult === null && !isListening) {
         statusDot.className = '';
       }
     }
