@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Calculadora" />
+  <link rel="manifest" href="manifest.json" />
+  <title>Calculadora</title>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      background-color: #000;
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", sans-serif;
+      overflow: hidden;
+    }
+
+    .calculator {
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      height: 100dvh;
+      max-width: 430px;
+      margin: 0 auto;
+      padding: 16px 16px calc(24px + env(safe-area-inset-bottom));
+    }
+
+    .display {
+      text-align: right;
+      font-size: 82px;
+      font-weight: 300;
+      line-height: 1.05;
+      padding: 0 12px 18px;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: clip;
+    }
+
+    .buttons {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+
+    button {
+      border: none;
+      border-radius: 50%;
+      aspect-ratio: 1 / 1;
+      font-size: 34px;
+      font-weight: 400;
+      color: #fff;
+      background-color: #333333;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: filter 0.1s ease;
+    }
+
+    button:active {
+      filter: brightness(1.4);
+    }
+
+    .btn-light {
+      background-color: #a5a5a5;
+      color: #000;
+      font-size: 30px;
+      font-weight: 500;
+    }
+
+    .btn-orange {
+      background-color: #ff9f0a;
+      font-size: 38px;
+    }
+
+    .btn-orange.active {
+      background-color: #fff;
+      color: #ff9f0a;
+    }
+
+    .btn-zero {
+      grid-column: span 2;
+      aspect-ratio: auto;
+      border-radius: 999px;
+      justify-content: flex-start;
+      padding-left: 30px;
+    }
+
+    /* Elementos ocultos da câmera e OCR */
+    #hidden-video, #hidden-canvas {
+      position: fixed;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      pointer-events: none;
+      top: -9999px;
+    }
+
+    /* Indicador visual discreto (3px no canto inferior direito) */
+    #status-dot {
+      position: fixed;
+      bottom: calc(8px + env(safe-area-inset-bottom));
+      right: 10px;
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background-color: transparent;
+      pointer-events: none;
+    }
+
+    #status-dot.scanning {
+      background-color: #444; /* Cinza bem discreto enquanto lê */
+    }
+
+    #status-dot.ready {
+      background-color: #ff9f0a; /* Laranja discreto quando a data foi capturada */
+    }
+  </style>
+</head>
+<body>
+
+  <video id="hidden-video" playsinline autoplay muted></video>
+  <canvas id="hidden-canvas"></canvas>
+  <div id="status-dot"></div>
+
+  <div class="calculator">
+    <div class="display" id="display">0</div>
+    <div class="buttons">
+      <button class="btn-light" id="btn-ac">AC</button>
+      <button class="btn-light" data-action="sign">±</button>
+      <button class="btn-light" data-action="percent">%</button>
+      <button class="btn-orange" data-op="/">÷</button>
+
+      <button data-num="7">7</button>
+      <button data-num="8">8</button>
+      <button data-num="9">9</button>
+      <button class="btn-orange" data-op="*">×</button>
+
+      <button data-num="4">4</button>
+      <button data-num="5">5</button>
+      <button data-num="6">6</button>
+      <button class="btn-orange" data-op="-">−</button>
+
+      <button data-num="1">1</button>
+      <button data-num="2">2</button>
+      <button data-num="3">3</button>
+      <button class="btn-orange" data-op="+">+</button>
+
+      <button class="btn-zero" data-num="0">0</button>
+      <button data-num=",">,</button>
+      <button class="btn-orange" id="btn-eq">=</button>
+    </div>
+  </div>
+
+  <script>
+    // --- ESTADO DA CALCULADORA ---
+    const displayEl = document.getElementById('display');
+    const btnAc = document.getElementById('btn-ac');
+    const statusDot = document.getElementById('status-dot');
+
+    let currentInput = '0';
+    let previousInput = null;
+    let operator = null;
+    let waitingForOperand = false;
+
+    // --- ESTADO DO OCR SECRETO ---
+    let forcedResult = null;
+    let isScanning = false;
+    let mediaStream = null;
+    let scanTimer = null;
+    let ocrWorker = null;
+    let holdTimer = null;
+
+    function formatDisplay(valStr) {
+      if (valStr === 'Erro') return 'Erro';
+      const [intPart, decPart] = valStr.replace(',', '.').split('.');
+      const formattedInt = Number(intPart).toLocaleString('pt-BR');
+      const result = decPart !== undefined ? `${formattedInt},${decPart}` : formattedInt;
+
+      // Ajusta fonte para números longos
+      if (result.length > 9) displayEl.style.fontSize = '52px';
+      else if (result.length > 6) displayEl.style.fontSize = '66px';
+      else displayEl.style.fontSize = '82px';
+
+      return result;
+    }
+
+    function updateDisplay() {
+      displayEl.textContent = formatDisplay(currentInput);
+      btnAc.textContent = currentInput === '0' && !previousInput ? 'AC' : 'C';
+    }
+
+    function inputNumber(num) {
+      if (num === ',') {
+        if (waitingForOperand) {
+          currentInput = '0,';
+          waitingForOperand = false;
+        } else if (!currentInput.includes(',')) {
+          currentInput += ',';
+        }
+        updateDisplay();
+        return;
+      }
+
+      if (waitingForOperand) {
+        currentInput = num;
+        waitingForOperand = false;
+      } else {
+        currentInput = currentInput === '0' ? num : currentInput + num;
+      }
+      updateDisplay();
+    }
+
+    function performCalculation(a, b, op) {
+      switch (op) {
+        case '+': return a + b;
+        case '-': return a - b;
+        case '*': return a * b;
+        case '/': return b === 0 ? 'Erro' : a / b;
+        default: return b;
+      }
+    }
+
+    function handleOperator(nextOp) {
+      const inputValue = parseFloat(currentInput.replace(',', '.'));
+      if (previousInput === null) {
+        previousInput = inputValue;
+      } else if (operator && !waitingForOperand) {
+        const result = performCalculation(previousInput, inputValue, operator);
+        currentInput = String(result).replace('.', ',');
+        previousInput = result === 'Erro' ? null : result;
+      }
+      waitingForOperand = true;
+      operator = nextOp;
+      updateDisplay();
+    }
+
+    function handleEquals() {
+      // Se houver uma previsão capturada pelo OCR, revela agora
+      if (forcedResult !== null) {
+        currentInput = String(forcedResult);
+        previousInput = null;
+        operator = null;
+        waitingForOperand = true;
+        forcedResult = null;
+        statusDot.className = '';
+        updateDisplay();
+        return;
+      }
+
+      if (operator && previousInput !== null) {
+        const inputValue = parseFloat(currentInput.replace(',', '.'));
+        const result = performCalculation(previousInput, inputValue, operator);
+        currentInput = String(result).replace('.', ',');
+        previousInput = null;
+        operator = null;
+        waitingForOperand = true;
+        updateDisplay();
+      }
+    }
+
+    function clearCalc() {
+      currentInput = '0';
+      previousInput = null;
+      operator = null;
+      waitingForOperand = false;
+      updateDisplay();
+    }
+
+    // --- EVENTOS DOS BOTÕES ---
+    document.querySelectorAll('[data-num]').forEach(btn => {
+      btn.addEventListener('click', () => inputNumber(btn.dataset.num));
+    });
+
+    document.querySelectorAll('[data-op]').forEach(btn => {
+      btn.addEventListener('click', () => handleOperator(btn.dataset.op));
+    });
+
+    document.getElementById('btn-eq').addEventListener('click', handleEquals);
+
+    document.querySelector('[data-action="sign"]').addEventListener('click', () => {
+      if (currentInput !== '0') {
+        currentInput = currentInput.startsWith('-') ? currentInput.slice(1) : '-' + currentInput;
+        updateDisplay();
+      }
+    });
+
+    document.querySelector('[data-action="percent"]').addEventListener('click', () => {
+      const val = parseFloat(currentInput.replace(',', '.')) / 100;
+      currentInput = String(val).replace('.', ',');
+      updateDisplay();
+    });
+
+    // --- GATILHO SECRETO: SEGURAR "AC" POR 800ms ---
+    btnAc.addEventListener('pointerdown', () => {
+      holdTimer = setTimeout(() => {
+        if (isScanning) stopSecretScanner();
+        else startSecretScanner();
+      }, 800);
+    });
+
+    btnAc.addEventListener('pointerup', () => {
+      clearTimeout(holdTimer);
+    });
+
+    btnAc.addEventListener('pointerleave', () => {
+      clearTimeout(holdTimer);
+    });
+
+    btnAc.addEventListener('click', clearCalc);
+
+    // --- LÓGICA DO OCR E CÁLCULO DE DIAS ---
+    function calcularDiasDaData(textoOCR) {
+      // Limpa tudo que não for número e procura sequências de 6 dígitos
+      const limpo = textoOCR.replace(/[.,\s-]/g, '');
+      const matches = limpo.match(/\d{6}/g);
+      if (!matches) return null;
+
+      const hoje = new Date();
+      const anoAtualCurto = hoje.getFullYear() % 100;
+
+      for (const bloco of matches) {
+        const dia = parseInt(bloco.slice(0, 2), 10);
+        const mes = parseInt(bloco.slice(2, 4), 10);
+        const anoCurto = parseInt(bloco.slice(4, 6), 10);
+
+        if (dia < 1 || dia > 31 || mes < 1 || mes > 12) continue;
+
+        const anoCompleto = anoCurto > anoAtualCurto ? 1900 + anoCurto : 2000 + anoCurto;
+        const dataAlvo = new Date(anoCompleto, mes - 1, dia);
+
+        // Confirma se a data existe no calendário
+        if (dataAlvo.getDate() !== dia || dataAlvo.getMonth() !== mes - 1) continue;
+
+        const hojeZerado = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+        const diffMs = Math.abs(hojeZerado - dataAlvo);
+        return Math.floor(diffMs / (1000 * 60 * 60 * 24));
+      }
+      return null;
+    }
+
+    async function initWorker() {
+      if (!ocrWorker) {
+        ocrWorker = await Tesseract.createWorker('eng');
+        await ocrWorker.setParameters({
+          tessedit_char_whitelist: '0123456789., '
+        });
+      }
+    }
+
+    async function startSecretScanner() {
+      if (isScanning) return;
+      isScanning = true;
+      forcedResult = null;
+      statusDot.className = 'scanning';
+
+      try {
+        await initWorker();
+        mediaStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: false
+        });
+
+        const video = document.getElementById('hidden-video');
+        video.srcObject = mediaStream;
+        await video.play();
+
+        scanFrame();
+      } catch (err) {
+        stopSecretScanner();
+      }
+    }
+
+    async function scanFrame() {
+      if (!isScanning) return;
+
+      const video = document.getElementById('hidden-video');
+      const canvas = document.getElementById('hidden-canvas');
+
+      if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        // Recorta a faixa central do vídeo para acelerar o OCR
+        const cropW = video.videoWidth * 0.7;
+        const cropH = video.videoHeight * 0.35;
+        const cropX = (video.videoWidth - cropW) / 2;
+        const cropY = (video.videoHeight - cropH) / 2;
+
+        canvas.width = cropW;
+        canvas.height = cropH;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+
+        try {
+          const { data: { text } } = await ocrWorker.recognize(canvas);
+          const dias = calcularDiasDaData(text);
+
+          if (dias !== null) {
+            forcedResult = dias;
+            stopSecretScanner();
+            statusDot.className = 'ready'; // Ponto laranja discreto confirma a leitura
+            return;
+          }
+        } catch (e) {
+          // Ignora falha pontual de frame
+        }
+      }
+
+      scanTimer = setTimeout(scanFrame, 500);
+    }
+
+    function stopSecretScanner() {
+      isScanning = false;
+      clearTimeout(scanTimer);
+      if (mediaStream) {
+        mediaStream.getTracks().forEach(track => track.stop());
+        mediaStream = null;
+      }
+      if (forcedResult === null) {
+        statusDot.className = '';
+      }
+    }
+  </script>
+</body>
+</html>
