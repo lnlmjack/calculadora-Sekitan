@@ -8,7 +8,6 @@
   <meta name="apple-mobile-web-app-title" content="Calculadora" />
   <link rel="manifest" href="manifest.json" />
   <title>Calculadora</title>
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <style>
     * {
       box-sizing: border-box;
@@ -18,6 +17,11 @@
       user-select: none;
       -webkit-user-select: none;
       -webkit-touch-callout: none;
+    }
+
+    input {
+      user-select: text;
+      -webkit-user-select: text;
     }
 
     html, body {
@@ -134,6 +138,7 @@
     #status-dot.loading { background-color: #555; }
     #status-dot.scanning { background-color: #0a84ff; }
     #status-dot.ready { background-color: #ff9f0a; }
+    #status-dot.error { background-color: #ff453a; }
 
     /* Painel de Teste (Debug) */
     #debug-panel {
@@ -157,7 +162,7 @@
 
     #debug-preview {
       width: 100%;
-      height: 90px;
+      height: 110px;
       object-fit: contain;
       background: #111;
       border: 1px solid #333;
@@ -176,7 +181,7 @@
       -webkit-backdrop-filter: blur(8px);
       align-items: center;
       justify-content: center;
-      padding: 20px;
+      padding: 16px;
     }
 
     #control-overlay.visible {
@@ -186,30 +191,47 @@
     .control-box {
       width: 100%;
       max-width: 360px;
+      max-height: 88dvh;
+      overflow-y: auto;
       background: #1c1c1e;
       border: 1px solid #333;
       border-radius: 18px;
-      padding: 20px;
+      padding: 18px;
       color: #fff;
     }
 
     .control-box h2 {
-      font-size: 18px;
+      font-size: 17px;
       font-weight: 600;
-      margin-bottom: 16px;
+      margin-bottom: 14px;
       text-align: center;
       color: #ff9f0a;
     }
 
     .control-group {
-      margin-bottom: 14px;
+      margin-bottom: 13px;
     }
 
     .control-label {
       display: block;
-      font-size: 13px;
+      font-size: 12px;
       color: #aaa;
       margin-bottom: 6px;
+    }
+
+    .api-input {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid #3a3a3c;
+      background: #2c2c2e;
+      color: #fff;
+      font-size: 14px;
+      outline: none;
+    }
+
+    .api-input:focus {
+      border-color: #ff9f0a;
     }
 
     .option-row {
@@ -218,11 +240,17 @@
       gap: 8px;
     }
 
+    .option-row-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+    }
+
     .ctrl-btn {
       aspect-ratio: auto;
       border-radius: 10px;
-      padding: 11px 8px;
-      font-size: 14px;
+      padding: 10px 8px;
+      font-size: 13px;
       font-weight: 500;
       background: #2c2c2e;
       color: #ccc;
@@ -241,7 +269,7 @@
       aspect-ratio: auto;
       border-radius: 12px;
       padding: 13px;
-      font-size: 16px;
+      font-size: 15px;
       font-weight: 600;
       background: #333;
       color: #fff;
@@ -258,7 +286,7 @@
   <!-- Painel de Teste (Debug) -->
   <div id="debug-panel">
     <div id="debug-status">Status: Parado (Segure AC para ler)</div>
-    <div id="debug-text">OCR leu: —</div>
+    <div id="debug-text">IA leu: —</div>
     <img id="debug-preview" alt="" />
   </div>
 
@@ -266,6 +294,11 @@
   <div id="control-overlay">
     <div class="control-box">
       <h2>Painel de Controle</h2>
+
+      <div class="control-group">
+        <span class="control-label">Chave API Gemini (salva só neste celular)</span>
+        <input type="password" id="api-key-input" class="api-input" placeholder="Cole sua chave AIza..." autocomplete="off" />
+      </div>
 
       <div class="control-group">
         <span class="control-label">Função do OCR</span>
@@ -284,6 +317,15 @@
       </div>
 
       <div class="control-group">
+        <span class="control-label">Zoom da Câmera (para ler de longe)</span>
+        <div class="option-row-3">
+          <button class="ctrl-btn" id="zoom-1">1x</button>
+          <button class="ctrl-btn" id="zoom-2">2x</button>
+          <button class="ctrl-btn" id="zoom-3">3x</button>
+        </div>
+      </div>
+
+      <div class="control-group">
         <span class="control-label">Câmera</span>
         <div class="option-row">
           <button class="ctrl-btn" id="cam-back">Traseira</button>
@@ -292,14 +334,14 @@
       </div>
 
       <div class="control-group">
-        <span class="control-label">Visor de Teste (Câmera + OCR)</span>
+        <span class="control-label">Visor de Teste (Câmera + IA)</span>
         <div class="option-row">
           <button class="ctrl-btn" id="debug-off">Oculto</button>
           <button class="ctrl-btn" id="debug-on">Visível</button>
         </div>
       </div>
 
-      <button class="ctrl-close" id="btn-close-panel">Fechar</button>
+      <button class="ctrl-close" id="btn-close-panel">Salvar e Fechar</button>
     </div>
   </div>
 
@@ -342,12 +384,17 @@
     const debugText = document.getElementById('debug-text');
     const debugPreview = document.getElementById('debug-preview');
     const controlOverlay = document.getElementById('control-overlay');
+    const apiKeyInput = document.getElementById('api-key-input');
 
-    // Configurações salvas no celular
-    let ocrMode = localStorage.getItem('ocrMode') || 'date'; // 'date' | 'normal'
-    let revealMode = localStorage.getItem('revealMode') || 'immediate'; // 'immediate' | 'equals'
-    let camFacing = localStorage.getItem('camFacing') || 'environment'; // 'environment' | 'user'
+    // Configurações salvas localmente no iPhone
+    let geminiApiKey = localStorage.getItem('geminiApiKey') || '';
+    let ocrMode = localStorage.getItem('ocrMode') || 'date';
+    let revealMode = localStorage.getItem('revealMode') || 'immediate';
+    let zoomLevel = Number(localStorage.getItem('zoomLevel')) || 2;
+    let camFacing = localStorage.getItem('camFacing') || 'environment';
     let showDebug = localStorage.getItem('showDebug') === 'true';
+
+    apiKeyInput.value = geminiApiKey;
 
     let currentInput = '0';
     let previousInput = null;
@@ -358,9 +405,8 @@
     let isScanning = false;
     let mediaStream = null;
     let scanTimer = null;
-    let ocrWorker = null;
+    let hardwareZoomApplied = false;
 
-    // --- HELPER DE TOQUE LONGO CONFIÁVEL PARA iOS ---
     function bindLongPress(el, duration, onLongPress, onShortTap) {
       let timer = null;
       let didLongPress = false;
@@ -406,6 +452,9 @@
       document.getElementById('mode-normal').classList.toggle('selected', ocrMode === 'normal');
       document.getElementById('reveal-immediate').classList.toggle('selected', revealMode === 'immediate');
       document.getElementById('reveal-equals').classList.toggle('selected', revealMode === 'equals');
+      document.getElementById('zoom-1').classList.toggle('selected', zoomLevel === 1);
+      document.getElementById('zoom-2').classList.toggle('selected', zoomLevel === 2);
+      document.getElementById('zoom-3').classList.toggle('selected', zoomLevel === 3);
       document.getElementById('cam-back').classList.toggle('selected', camFacing === 'environment');
       document.getElementById('cam-front').classList.toggle('selected', camFacing === 'user');
       document.getElementById('debug-on').classList.toggle('selected', showDebug);
@@ -414,54 +463,42 @@
     }
 
     document.getElementById('mode-date').addEventListener('click', () => {
-      ocrMode = 'date';
-      localStorage.setItem('ocrMode', ocrMode);
-      syncControlUI();
+      ocrMode = 'date'; localStorage.setItem('ocrMode', ocrMode); syncControlUI();
     });
-
     document.getElementById('mode-normal').addEventListener('click', () => {
-      ocrMode = 'normal';
-      localStorage.setItem('ocrMode', ocrMode);
-      syncControlUI();
+      ocrMode = 'normal'; localStorage.setItem('ocrMode', ocrMode); syncControlUI();
     });
-
     document.getElementById('reveal-immediate').addEventListener('click', () => {
-      revealMode = 'immediate';
-      localStorage.setItem('revealMode', revealMode);
-      syncControlUI();
+      revealMode = 'immediate'; localStorage.setItem('revealMode', revealMode); syncControlUI();
     });
-
     document.getElementById('reveal-equals').addEventListener('click', () => {
-      revealMode = 'equals';
-      localStorage.setItem('revealMode', revealMode);
-      syncControlUI();
+      revealMode = 'equals'; localStorage.setItem('revealMode', revealMode); syncControlUI();
     });
-
+    document.getElementById('zoom-1').addEventListener('click', () => {
+      zoomLevel = 1; localStorage.setItem('zoomLevel', '1'); syncControlUI();
+    });
+    document.getElementById('zoom-2').addEventListener('click', () => {
+      zoomLevel = 2; localStorage.setItem('zoomLevel', '2'); syncControlUI();
+    });
+    document.getElementById('zoom-3').addEventListener('click', () => {
+      zoomLevel = 3; localStorage.setItem('zoomLevel', '3'); syncControlUI();
+    });
     document.getElementById('cam-back').addEventListener('click', () => {
-      camFacing = 'environment';
-      localStorage.setItem('camFacing', camFacing);
-      syncControlUI();
+      camFacing = 'environment'; localStorage.setItem('camFacing', camFacing); syncControlUI();
     });
-
     document.getElementById('cam-front').addEventListener('click', () => {
-      camFacing = 'user';
-      localStorage.setItem('camFacing', camFacing);
-      syncControlUI();
+      camFacing = 'user'; localStorage.setItem('camFacing', camFacing); syncControlUI();
     });
-
     document.getElementById('debug-on').addEventListener('click', () => {
-      showDebug = true;
-      localStorage.setItem('showDebug', 'true');
-      syncControlUI();
+      showDebug = true; localStorage.setItem('showDebug', 'true'); syncControlUI();
     });
-
     document.getElementById('debug-off').addEventListener('click', () => {
-      showDebug = false;
-      localStorage.setItem('showDebug', 'false');
-      syncControlUI();
+      showDebug = false; localStorage.setItem('showDebug', 'false'); syncControlUI();
     });
 
     document.getElementById('btn-close-panel').addEventListener('click', () => {
+      geminiApiKey = apiKeyInput.value.trim();
+      localStorage.setItem('geminiApiKey', geminiApiKey);
       controlOverlay.classList.remove('visible');
     });
 
@@ -572,33 +609,29 @@
     document.querySelectorAll('[data-num]').forEach(btn => {
       btn.addEventListener('click', () => inputNumber(btn.dataset.num));
     });
-
     document.querySelectorAll('[data-op]').forEach(btn => {
       btn.addEventListener('click', () => handleOperator(btn.dataset.op));
     });
-
     document.getElementById('btn-eq').addEventListener('click', handleEquals);
-
     document.querySelector('[data-action="percent"]').addEventListener('click', () => {
       const val = parseFloat(currentInput.replace(',', '.')) / 100;
       currentInput = String(val).replace('.', ',');
       updateDisplay();
     });
 
-    // Segurar "±" por 800ms -> Abre Painel de Controle | Toque curto -> Inverte sinal
     bindLongPress(btnSign, 800, () => {
+      apiKeyInput.value = geminiApiKey;
       controlOverlay.classList.add('visible');
     }, toggleSign);
 
-    // Segurar "AC" por 800ms -> Liga/Desliga OCR | Toque curto -> Limpa calculadora
     bindLongPress(btnAc, 800, () => {
       if (isScanning) stopSecretScanner();
       else startSecretScanner();
     }, clearCalc);
 
-    // --- PROCESSAMENTO DOS DOIS MODOS ---
-    function calcularDiasDaData(textoOCR) {
-      const limpo = textoOCR.replace(/[.,\s-]/g, '');
+    // --- CÁLCULOS ---
+    function calcularDiasDaData(texto) {
+      const limpo = texto.replace(/\D/g, '');
       const matches = limpo.match(/\d{6}/g);
       if (!matches) return null;
 
@@ -614,7 +647,6 @@
 
         const anoCompleto = anoCurto > anoAtualCurto ? 1900 + anoCurto : 2000 + anoCurto;
         const dataAlvo = new Date(anoCompleto, mes - 1, dia);
-
         if (dataAlvo.getDate() !== dia || dataAlvo.getMonth() !== mes - 1) continue;
 
         const hojeZerado = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
@@ -624,34 +656,65 @@
       return null;
     }
 
-    function extrairNumeroNormal(textoOCR) {
-      const limpo = textoOCR.replace(/[.,\s-]/g, '');
-      const matches = limpo.match(/\d{2,}/g);
-      if (!matches) return null;
-      matches.sort((a, b) => b.length - a.length);
-      return matches[0];
+    function extrairNumeroNormal(texto) {
+      const limpo = texto.replace(/\D/g, '');
+      return limpo.length >= 1 ? limpo : null;
     }
 
-    async function initWorker() {
-      if (!ocrWorker) {
-        debugStatus.textContent = 'Status: Baixando motor OCR...';
-        ocrWorker = await Tesseract.createWorker('eng');
-        await ocrWorker.setParameters({
-          tessedit_char_whitelist: '0123456789., '
-        });
+    // --- LEITURA VIA GEMINI VISION API ---
+    async function consultarGemini(base64Jpeg) {
+      const prompt = ocrMode === 'date'
+        ? "Analise esta foto. Encontre a tela de outro celular com uma calculadora aberta. Leia APENAS o número grande no visor principal de resultado da calculadora (geralmente uma data de 6 dígitos como 210479 ou 210.479). IGNORE COMPLETAMENTE os botões do teclado da calculadora (0 a 9), o relógio, a bateria e qualquer texto ao fundo. Responda SOMENTE com os dígitos puros do visor (sem pontos, vírgulas ou explicações). Se não houver número legível no visor principal, responda exatamente: NONE"
+        : "Analise esta foto. Encontre a tela de outro celular com uma calculadora aberta ou número digitado em destaque. Leia APENAS o número grande no visor principal de resultado. IGNORE COMPLETAMENTE os botões do teclado da calculadora (0 a 9), o relógio, a bateria e qualquer texto ao fundo. Responda SOMENTE com os dígitos puros do visor (sem pontos, vírgulas ou explicações). Se não houver número legível no visor principal, responda exatamente: NONE";
+
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${encodeURIComponent(geminiApiKey)}`;
+
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            parts: [
+              { text: prompt },
+              { inline_data: { mime_type: 'image/jpeg', data: base64Jpeg } }
+            ]
+          }],
+          generationConfig: { temperature: 0, maxOutputTokens: 20 }
+        })
+      });
+
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json.error?.message || `HTTP ${res.status}`);
       }
+
+      const raw = json.candidates?.[0]?.content?.parts?.[0]?.text || 'NONE';
+      return raw.trim();
     }
 
     async function startSecretScanner() {
       if (isScanning) return;
+
+      if (!geminiApiKey) {
+        statusDot.className = 'error';
+        debugStatus.textContent = 'Falta a Chave API! Segure ± para colar.';
+        controlOverlay.classList.add('visible');
+        return;
+      }
+
       isScanning = true;
       forcedResult = null;
+      hardwareZoomApplied = false;
       statusDot.className = 'loading';
-      debugStatus.textContent = 'Status: Abrindo câmera...';
+      debugStatus.textContent = 'Abrindo câmera Full HD...';
 
       try {
         mediaStream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: camFacing, width: { ideal: 1280 }, height: { ideal: 720 } },
+          video: {
+            facingMode: camFacing,
+            width: { ideal: 1920 },
+            height: { ideal: 1080 }
+          },
           audio: false
         });
 
@@ -659,37 +722,26 @@
         video.srcObject = mediaStream;
         await video.play();
 
-        await initWorker();
+        // Tenta aplicar zoom nativo da lente se o navegador suportar
+        const track = mediaStream.getVideoTracks()[0];
+        if (track && typeof track.getCapabilities === 'function') {
+          const caps = track.getCapabilities();
+          if (caps.zoom && zoomLevel > 1) {
+            const targetZoom = Math.min(caps.zoom.max, Math.max(caps.zoom.min, zoomLevel));
+            try {
+              await track.applyConstraints({ advanced: [{ zoom: targetZoom }] });
+              hardwareZoomApplied = true;
+            } catch (e) {}
+          }
+        }
+
         statusDot.className = 'scanning';
-        debugStatus.textContent = ocrMode === 'date'
-          ? 'Lendo: Conta de Dias (6 dígitos)'
-          : 'Lendo: Leitura Normal';
+        debugStatus.textContent = `Lendo com IA (Zoom ${zoomLevel}x)...`;
         scanFrame();
       } catch (err) {
-        debugStatus.textContent = 'Erro: ' + err.message;
+        debugStatus.textContent = 'Erro câmera: ' + err.message;
         stopSecretScanner();
       }
-    }
-
-    function preprocessCanvas(ctx, w, h) {
-      const imgData = ctx.getImageData(0, 0, w, h);
-      const data = imgData.data;
-      let totalLuma = 0;
-
-      for (let i = 0; i < data.length; i += 4) {
-        totalLuma += 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-      }
-
-      const isDarkBg = (totalLuma / (data.length / 4)) < 128;
-
-      for (let i = 0; i < data.length; i += 4) {
-        let gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-        if (isDarkBg) gray = 255 - gray;
-        const val = gray > 140 ? 255 : 0;
-        data[i] = data[i + 1] = data[i + 2] = val;
-      }
-
-      ctx.putImageData(imgData, 0, 0);
     }
 
     async function scanFrame() {
@@ -699,55 +751,65 @@
       const canvas = document.getElementById('hidden-canvas');
 
       if (video.readyState === video.HAVE_ENOUGH_DATA && video.videoWidth > 0) {
-        const cropW = Math.floor(video.videoWidth * 0.75);
-        const cropH = Math.floor(video.videoHeight * 0.35);
+        // Se o zoom nativo não foi aplicado, faz zoom digital recortando o centro em alta resolução
+        const effectiveDigitalZoom = hardwareZoomApplied ? 1 : zoomLevel;
+        const cropW = Math.floor(video.videoWidth / effectiveDigitalZoom);
+        const cropH = Math.floor(video.videoHeight / effectiveDigitalZoom);
         const cropX = Math.floor((video.videoWidth - cropW) / 2);
         const cropY = Math.floor((video.videoHeight - cropH) / 2);
 
-        canvas.width = cropW;
-        canvas.height = cropH;
-        const ctx = canvas.getContext('2d', { willReadFrequently: true });
-        ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+        // Redimensiona mantendo ótima nitidez sem deixar o upload lento
+        const outW = Math.min(cropW, 960);
+        const outH = Math.round((cropH / cropW) * outW);
 
-        preprocessCanvas(ctx, cropW, cropH);
+        canvas.width = outW;
+        canvas.height = outH;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, outW, outH);
 
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
         if (showDebug) {
-          debugPreview.src = canvas.toDataURL('image/jpeg', 0.6);
+          debugPreview.src = dataUrl;
         }
 
+        const base64Data = dataUrl.split(',')[1];
+
         try {
-          const { data: { text } } = await ocrWorker.recognize(canvas);
-          const cleanText = text.trim();
-          debugText.textContent = 'OCR leu: ' + (cleanText || '(nada)');
+          const respostaIA = await consultarGemini(base64Data);
+          debugText.textContent = 'IA leu: ' + respostaIA;
 
-          const resultado = ocrMode === 'date'
-            ? calcularDiasDaData(cleanText)
-            : extrairNumeroNormal(cleanText);
+          if (respostaIA && !respostaIA.toUpperCase().includes('NONE')) {
+            const resultado = ocrMode === 'date'
+              ? calcularDiasDaData(respostaIA)
+              : extrairNumeroNormal(respostaIA);
 
-          if (resultado !== null) {
-            stopSecretScanner();
+            if (resultado !== null) {
+              stopSecretScanner();
 
-            if (revealMode === 'immediate') {
-              currentInput = String(resultado);
-              previousInput = null;
-              operator = null;
-              waitingForOperand = true;
-              statusDot.className = '';
-              updateDisplay();
-              debugStatus.textContent = `CAPTURADO E EXIBIDO: ${resultado}`;
-            } else {
-              forcedResult = resultado;
-              statusDot.className = 'ready';
-              debugStatus.textContent = `CAPTURADO: ${resultado} (Aperte =)`;
+              if (revealMode === 'immediate') {
+                currentInput = String(resultado);
+                previousInput = null;
+                operator = null;
+                waitingForOperand = true;
+                statusDot.className = '';
+                updateDisplay();
+                debugStatus.textContent = `CAPTURADO E EXIBIDO: ${resultado}`;
+              } else {
+                forcedResult = resultado;
+                statusDot.className = 'ready';
+                debugStatus.textContent = `CAPTURADO: ${resultado} (Aperte =)`;
+              }
+              return;
             }
-            return;
           }
         } catch (e) {
-          debugText.textContent = 'Erro OCR: ' + e.message;
+          debugText.textContent = 'Erro IA: ' + e.message;
         }
       }
 
-      scanTimer = setTimeout(scanFrame, 450);
+      if (isScanning) {
+        scanTimer = setTimeout(scanFrame, 1200);
+      }
     }
 
     function stopSecretScanner() {
