@@ -140,7 +140,6 @@
     #status-dot.ready { background-color: #ff9f0a; }
     #status-dot.error { background-color: #ff453a; }
 
-    /* Painel de Teste (Debug) */
     #debug-panel {
       display: none;
       position: fixed;
@@ -162,7 +161,7 @@
 
     #debug-preview {
       width: 100%;
-      height: 110px;
+      height: 120px;
       object-fit: contain;
       background: #111;
       border: 1px solid #333;
@@ -170,7 +169,6 @@
       display: block;
     }
 
-    /* Painel de Controle Oculto */
     #control-overlay {
       display: none;
       position: fixed;
@@ -283,14 +281,12 @@
   <canvas id="hidden-canvas"></canvas>
   <div id="status-dot"></div>
 
-  <!-- Painel de Teste (Debug) -->
   <div id="debug-panel">
     <div id="debug-status">Status: Parado (Segure AC para ler)</div>
     <div id="debug-text">IA leu: —</div>
     <img id="debug-preview" alt="" />
   </div>
 
-  <!-- Painel de Controle Oculto (Segure ± por 1s) -->
   <div id="control-overlay">
     <div class="control-box">
       <h2>Painel de Controle</h2>
@@ -317,7 +313,7 @@
       </div>
 
       <div class="control-group">
-        <span class="control-label">Zoom da Câmera (para ler de longe)</span>
+        <span class="control-label">Zoom da Câmera (1x recomendado p/ mira fácil)</span>
         <div class="option-row-3">
           <button class="ctrl-btn" id="zoom-1">1x</button>
           <button class="ctrl-btn" id="zoom-2">2x</button>
@@ -386,11 +382,10 @@
     const controlOverlay = document.getElementById('control-overlay');
     const apiKeyInput = document.getElementById('api-key-input');
 
-    // Configurações salvas localmente no iPhone
     let geminiApiKey = localStorage.getItem('geminiApiKey') || '';
     let ocrMode = localStorage.getItem('ocrMode') || 'date';
     let revealMode = localStorage.getItem('revealMode') || 'immediate';
-    let zoomLevel = Number(localStorage.getItem('zoomLevel')) || 2;
+    let zoomLevel = Number(localStorage.getItem('zoomLevel')) || 1;
     let camFacing = localStorage.getItem('camFacing') || 'environment';
     let showDebug = localStorage.getItem('showDebug') === 'true';
 
@@ -446,7 +441,6 @@
       el.addEventListener('mouseleave', cancel);
     }
 
-    // --- PAINEL DE CONTROLE ---
     function syncControlUI() {
       document.getElementById('mode-date').classList.toggle('selected', ocrMode === 'date');
       document.getElementById('mode-normal').classList.toggle('selected', ocrMode === 'normal');
@@ -504,7 +498,6 @@
 
     syncControlUI();
 
-    // --- CALCULADORA ---
     function formatDisplay(valStr) {
       if (valStr === 'Erro') return 'Erro';
       const [intPart, decPart] = valStr.replace(',', '.').split('.');
@@ -629,7 +622,6 @@
       else startSecretScanner();
     }, clearCalc);
 
-    // --- CÁLCULOS (aceita 5, 6, 7 ou 8 dígitos, completando zero à esquerda) ---
     function calcularDiasDaData(texto) {
       const limpo = texto.replace(/\D/g, '');
       if (limpo.length < 5 || limpo.length > 8) return null;
@@ -666,13 +658,12 @@
       return limpo.length >= 1 ? limpo : null;
     }
 
-    // --- LEITURA VIA GEMINI VISION API ---
     async function consultarGemini(base64Jpeg) {
       const prompt = ocrMode === 'date'
-        ? "Analise esta foto. Encontre a tela de outro celular com uma calculadora aberta. Leia APENAS o número grande no visor principal de resultado da calculadora (geralmente uma data de 5 a 8 dígitos como 51240, 210479 ou 5121940). IGNORE COMPLETAMENTE os botões do teclado da calculadora (0 a 9), o relógio, a bateria e qualquer texto ao fundo. Responda SOMENTE com os dígitos puros do visor (sem pontos, vírgulas ou explicações). Se não houver número legível no visor principal, responda exatamente: NONE"
-        : "Analise esta foto. Encontre a tela de outro celular com uma calculadora aberta ou número digitado em destaque. Leia APENAS o número grande no visor principal de resultado. IGNORE COMPLETAMENTE os botões do teclado da calculadora (0 a 9), o relógio, a bateria e qualquer texto ao fundo. Responda SOMENTE com os dígitos puros do visor (sem pontos, vírgulas ou explicações). Se não houver número legível no visor principal, responda exatamente: NONE";
+        ? "Encontre a tela de outro celular com uma calculadora aberta nesta foto (mesmo que esteja longe ou inclinada). Leia APENAS o número grande no visor principal de resultado da calculadora (geralmente uma data de 5 a 8 dígitos como 51240, 210479 ou 5121940). IGNORE COMPLETAMENTE os botões do teclado (0 a 9), relógio e bateria. Responda SOMENTE com os dígitos puros do visor (sem pontos, vírgulas ou texto). Se não houver número legível no visor principal, responda exatamente: NONE"
+        : "Encontre a tela de outro celular com uma calculadora aberta ou número em destaque nesta foto (mesmo que esteja longe ou inclinada). Leia APENAS o número grande no visor principal de resultado. IGNORE COMPLETAMENTE os botões do teclado (0 a 9), relógio e bateria. Responda SOMENTE com os dígitos puros do visor (sem pontos, vírgulas ou texto). Se não houver número legível no visor principal, responda exatamente: NONE";
 
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${encodeURIComponent(geminiApiKey)}`;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(geminiApiKey)}`;
 
       const res = await fetch(url, {
         method: 'POST',
@@ -711,14 +702,15 @@
       forcedResult = null;
       hardwareZoomApplied = false;
       statusDot.className = 'loading';
-      debugStatus.textContent = 'Abrindo câmera Full HD...';
+      debugStatus.textContent = 'Abrindo câmera 4K...';
 
       try {
         mediaStream = await navigator.mediaDevices.getUserMedia({
           video: {
             facingMode: camFacing,
-            width: { ideal: 1920 },
-            height: { ideal: 1080 }
+            width: { ideal: 3840 },
+            height: { ideal: 2160 },
+            focusMode: { ideal: 'continuous' }
           },
           audio: false
         });
@@ -740,7 +732,7 @@
         }
 
         statusDot.className = 'scanning';
-        debugStatus.textContent = `Lendo com IA (Zoom ${zoomLevel}x)...`;
+        debugStatus.textContent = `Lendo em alta definição (Zoom ${zoomLevel}x)...`;
         scanFrame();
       } catch (err) {
         debugStatus.textContent = 'Erro câmera: ' + err.message;
@@ -761,7 +753,7 @@
         const cropX = Math.floor((video.videoWidth - cropW) / 2);
         const cropY = Math.floor((video.videoHeight - cropH) / 2);
 
-        const outW = Math.min(cropW, 960);
+        const outW = Math.min(cropW, 1600);
         const outH = Math.round((cropH / cropW) * outW);
 
         canvas.width = outW;
@@ -769,7 +761,7 @@
         const ctx = canvas.getContext('2d');
         ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, outW, outH);
 
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
         if (showDebug) {
           debugPreview.src = dataUrl;
         }
@@ -810,7 +802,7 @@
       }
 
       if (isScanning) {
-        scanTimer = setTimeout(scanFrame, 1200);
+        scanTimer = setTimeout(scanFrame, 1000);
       }
     }
 
