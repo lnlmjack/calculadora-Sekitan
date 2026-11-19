@@ -50,26 +50,51 @@
       display: none;
     }
 
-    /* --- TELA 1: CALCULADORA --- */
+    /* ================= TELA 1: CALCULADORA (CLONE EXATO) ================= */
     .calculator {
       position: relative;
       z-index: 2;
       background-color: #000;
       display: flex;
       flex-direction: column;
-      justify-content: flex-end;
+      justify-content: space-between;
       height: 100dvh;
       max-width: 430px;
       margin: 0 auto;
-      padding: 16px 16px calc(24px + env(safe-area-inset-bottom));
+      padding: calc(10px + env(safe-area-inset-top)) 16px calc(22px + env(safe-area-inset-bottom));
+    }
+
+    .calc-topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 4px 2px;
+    }
+
+    .calc-top-btn {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background-color: #1c1c1e;
+      border: 1px solid #2c2c2e;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+    }
+
+    .calc-bottom {
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
     }
 
     .display {
       text-align: right;
-      font-size: 82px;
+      font-size: 84px;
       font-weight: 300;
       line-height: 1.05;
-      padding: 0 12px 18px;
+      padding: 0 10px 14px;
       overflow: hidden;
       white-space: nowrap;
       text-overflow: clip;
@@ -81,71 +106,75 @@
       gap: 12px;
     }
 
-    button {
+    .calc-btn {
       border: none;
       border-radius: 50%;
       aspect-ratio: 1 / 1;
-      font-size: 34px;
+      font-size: 36px;
       font-weight: 400;
       color: #fff;
-      background-color: #333333;
+      background-color: #2c2c2e;
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
       touch-action: manipulation;
-      transition: filter 0.1s ease;
+      transition: filter 0.08s ease;
+    }
+
+    .calc-btn:active {
+      filter: brightness(1.45);
+    }
+
+    .btn-top-gray {
+      background-color: #5c5c5e;
+      color: #fff;
+      font-size: 30px;
+      font-weight: 400;
+    }
+
+    .btn-orange {
+      background-color: #ff9f0a;
+      color: #fff;
+      font-size: 40px;
+      font-weight: 400;
     }
 
     #btn-ac, #btn-sign, #btn-percent, #dial-star, #dial-zero, #dial-hash {
       touch-action: none;
     }
 
-    button:active {
-      filter: brightness(1.4);
-    }
-
-    .btn-light {
-      background-color: #a5a5a5;
-      color: #000;
-      font-size: 30px;
-      font-weight: 500;
-    }
-
-    .btn-orange {
-      background-color: #ff9f0a;
-      font-size: 38px;
-    }
-
-    .btn-zero {
-      grid-column: span 2;
-      aspect-ratio: auto;
-      border-radius: 999px;
-      justify-content: flex-start;
-      padding-left: 30px;
-    }
-
-    /* --- TELA 2: DISCADOR FAKE iOS --- */
+    /* ================= TELA 2: DISCADOR (CLONE EXATO) ================= */
     .dialer {
       position: relative;
       z-index: 2;
       background-color: #000;
       display: none;
       flex-direction: column;
-      justify-content: flex-end;
+      justify-content: space-between;
       height: 100dvh;
       max-width: 430px;
       margin: 0 auto;
-      padding: 20px 34px calc(34px + env(safe-area-inset-bottom));
+      padding: calc(36px + env(safe-area-inset-top)) 20px calc(14px + env(safe-area-inset-bottom));
+    }
+
+    .dialer-main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding-bottom: 10px;
     }
 
     .dialer-display {
+      width: 100%;
       text-align: center;
       font-size: 38px;
       font-weight: 400;
-      letter-spacing: 1px;
-      min-height: 54px;
-      margin-bottom: 24px;
+      letter-spacing: 0.5px;
+      min-height: 52px;
+      margin-bottom: 22px;
       overflow: hidden;
       white-space: nowrap;
       text-overflow: clip;
@@ -153,76 +182,159 @@
 
     .dialer-grid {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 16px 22px;
-      justify-items: center;
+      grid-template-columns: repeat(3, 80px);
+      gap: 16px 24px;
+      justify-content: center;
+      align-items: center;
     }
 
     .dial-btn {
-      width: 78px;
-      height: 78px;
+      width: 80px;
+      height: 80px;
       border-radius: 50%;
-      background-color: #333333;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      background-color: #212123;
       color: #fff;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       line-height: 1;
+      cursor: pointer;
+      transition: background-color 0.08s ease;
+    }
+
+    .dial-btn:active {
+      background-color: #48484a;
     }
 
     .dial-num {
-      font-size: 34px;
+      font-size: 36px;
       font-weight: 400;
     }
 
     .dial-letters {
       font-size: 10px;
       font-weight: 600;
-      letter-spacing: 1.5px;
+      letter-spacing: 1.8px;
       margin-top: 3px;
-      color: #e5e5ea;
+      color: #f2f2f7;
+    }
+
+    .dial-star-txt {
+      font-size: 42px;
+      font-weight: 300;
+      margin-top: 8px;
+    }
+
+    .dial-hash-txt {
+      font-size: 34px;
+      font-weight: 400;
+    }
+
+    .dial-plus {
+      font-size: 16px;
+      font-weight: 500;
+      margin-top: 1px;
+    }
+
+    .dial-actions {
+      display: grid;
+      grid-template-columns: repeat(3, 80px);
+      gap: 24px;
+      margin-top: 18px;
+      align-items: center;
+      justify-items: center;
     }
 
     .dial-call {
-      background-color: #30d158;
-      width: 78px;
-      height: 78px;
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      border: none;
+      background-color: #248a3d;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
     }
 
-    .dial-clear {
+    .dial-call:active {
+      filter: brightness(1.2);
+    }
+
+    .dial-back {
+      width: 56px;
+      height: 56px;
+      border: none;
       background: transparent;
-      width: 78px;
-      height: 78px;
       color: #8e8e93;
-      font-size: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.12s ease;
     }
 
-    .dial-spacer {
-      width: 78px;
-      height: 78px;
+    .dial-back.visible {
+      opacity: 1;
+      pointer-events: auto;
     }
 
-    /* --- INDICADOR DISCRETO --- */
+    /* Barra inferior flutuante do Telefone */
+    .dialer-tabbar {
+      width: 100%;
+      background: rgba(28, 28, 30, 0.92);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 36px;
+      padding: 6px 6px;
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      align-items: center;
+      gap: 2px;
+    }
+
+    .tab-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 6px 2px;
+      border-radius: 28px;
+      color: #fff;
+      font-size: 10px;
+      font-weight: 500;
+      gap: 3px;
+      white-space: nowrap;
+    }
+
+    .tab-item.active {
+      background: rgba(255, 255, 255, 0.12);
+      color: #0a84ff;
+    }
+
+    /* ================= INDICADOR DISCRETO ================= */
     #status-dot {
       position: fixed;
       z-index: 10;
-      bottom: calc(8px + env(safe-area-inset-bottom));
-      right: 10px;
-      width: 5px;
-      height: 5px;
+      bottom: calc(6px + env(safe-area-inset-bottom));
+      right: 8px;
+      width: 4px;
+      height: 4px;
       border-radius: 50%;
       background-color: transparent;
       pointer-events: none;
     }
 
     #status-dot.loading { background-color: #555; }
-    #status-dot.scanning-local { background-color: #30d158; } /* Verde: OCR local */
-    #status-dot.scanning-api { background-color: #0a84ff; }   /* Azul: Fallback API */
-    #status-dot.listening { background-color: #bf5af2; }      /* Roxo: Ouvindo voz */
-    #status-dot.ready { background-color: #ff9f0a; }          /* Laranja: Capturado */
+    #status-dot.scanning-local { background-color: #30d158; }
+    #status-dot.scanning-api { background-color: #0a84ff; }
+    #status-dot.listening { background-color: #bf5af2; }
+    #status-dot.ready { background-color: #ff9f0a; }
+    #status-dot.error { background-color: #ff453a; }
 
-    /* --- PAINEL DE TESTE (DEBUG) --- */
+    /* ================= PAINEL DE TESTE (DEBUG) ================= */
     #debug-panel {
       display: none;
       position: fixed;
@@ -252,7 +364,7 @@
       display: block;
     }
 
-    /* --- PAINEL DE CONTROLE OCULTO --- */
+    /* ================= PAINEL DE CONTROLE OCULTO ================= */
     #control-overlay {
       display: none;
       position: fixed;
@@ -329,14 +441,14 @@
     }
 
     .ctrl-btn {
-      aspect-ratio: auto;
+      border: 1px solid #3a3a3c;
       border-radius: 10px;
       padding: 9px 6px;
       font-size: 12px;
       font-weight: 500;
       background: #2c2c2e;
       color: #ccc;
-      border: 1px solid #3a3a3c;
+      cursor: pointer;
     }
 
     .ctrl-btn.selected {
@@ -348,7 +460,7 @@
 
     .ctrl-close {
       width: 100%;
-      aspect-ratio: auto;
+      border: none;
       border-radius: 12px;
       padding: 12px;
       font-size: 15px;
@@ -356,6 +468,7 @@
       background: #333;
       color: #fff;
       margin-top: 4px;
+      cursor: pointer;
     }
   </style>
 </head>
@@ -412,8 +525,8 @@
       </div>
 
       <div class="control-group">
-        <span class="control-label">Chave API Gemini (reforço se OCR local falhar)</span>
-        <input type="password" id="api-key-input" class="api-input" placeholder="Opcional: cole sua chave AIza..." autocomplete="off" />
+        <span class="control-label">Chave API Gemini (obrigatória p/ Palavra T9)</span>
+        <input type="password" id="api-key-input" class="api-input" placeholder="Cole sua chave AIza..." autocomplete="off" />
       </div>
 
       <div class="control-group">
@@ -445,70 +558,154 @@
     </div>
   </div>
 
-  <!-- TELA 1: CALCULADORA -->
+  <!-- ================= TELA 1: CALCULADORA ================= -->
   <div class="calculator" id="calc-screen">
-    <div class="display" id="display">0</div>
-    <div class="buttons">
-      <button class="btn-light" id="btn-ac">AC</button>
-      <button class="btn-light" id="btn-sign">±</button>
-      <button class="btn-light" id="btn-percent">%</button>
-      <button class="btn-orange" data-op="/">÷</button>
+    <div class="calc-topbar">
+      <div class="calc-top-btn">
+        <!-- Ícone Histórico / Relógio -->
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="9"></circle>
+          <polyline points="12 7 12 12 15.5 13.5"></polyline>
+        </svg>
+      </div>
+      <div class="calc-top-btn">
+        <!-- Ícone Mini Calculadora -->
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="5" y="3" width="14" height="18" rx="2.5"></rect>
+          <line x1="8" y1="7.5" x2="16" y2="7.5"></line>
+          <circle cx="9" cy="12" r="0.8" fill="currentColor"></circle>
+          <circle cx="12" cy="12" r="0.8" fill="currentColor"></circle>
+          <circle cx="15" cy="12" r="0.8" fill="currentColor"></circle>
+          <circle cx="9" cy="15.5" r="0.8" fill="currentColor"></circle>
+          <circle cx="12" cy="15.5" r="0.8" fill="currentColor"></circle>
+          <circle cx="15" cy="15.5" r="0.8" fill="currentColor"></circle>
+          <circle cx="9" cy="18.5" r="0.8" fill="currentColor"></circle>
+          <circle cx="12" cy="18.5" r="0.8" fill="currentColor"></circle>
+          <circle cx="15" cy="18.5" r="0.8" fill="currentColor"></circle>
+        </svg>
+      </div>
+    </div>
 
-      <button data-num="7">7</button>
-      <button data-num="8">8</button>
-      <button data-num="9">9</button>
-      <button class="btn-orange" data-op="*">×</button>
+    <div class="calc-bottom">
+      <div class="display" id="display">0</div>
+      <div class="buttons">
+        <button class="calc-btn btn-top-gray" id="btn-backspace">
+          <svg width="32" height="26" viewBox="0 0 28 22" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9.5 3H23a2.5 2.5 0 0 1 2.5 2.5v11A2.5 2.5 0 0 1 23 19H9.5L2.5 11 9.5 3z"></path>
+            <line x1="13" y1="8" x2="19" y2="14"></line>
+            <line x1="19" y1="8" x2="13" y2="14"></line>
+          </svg>
+        </button>
+        <button class="calc-btn btn-top-gray" id="btn-ac">AC</button>
+        <button class="calc-btn btn-top-gray" id="btn-percent">%</button>
+        <button class="calc-btn btn-orange" data-op="/">÷</button>
 
-      <button data-num="4">4</button>
-      <button data-num="5">5</button>
-      <button data-num="6">6</button>
-      <button class="btn-orange" data-op="-">−</button>
+        <button class="calc-btn" data-num="7">7</button>
+        <button class="calc-btn" data-num="8">8</button>
+        <button class="calc-btn" data-num="9">9</button>
+        <button class="calc-btn btn-orange" data-op="*">×</button>
 
-      <button data-num="1">1</button>
-      <button data-num="2">2</button>
-      <button data-num="3">3</button>
-      <button class="btn-orange" data-op="+">+</button>
+        <button class="calc-btn" data-num="4">4</button>
+        <button class="calc-btn" data-num="5">5</button>
+        <button class="calc-btn" data-num="6">6</button>
+        <button class="calc-btn btn-orange" data-op="-">−</button>
 
-      <button class="btn-zero" data-num="0">0</button>
-      <button data-num=",">,</button>
-      <button class="btn-orange" id="btn-eq">=</button>
+        <button class="calc-btn" data-num="1">1</button>
+        <button class="calc-btn" data-num="2">2</button>
+        <button class="calc-btn" data-num="3">3</button>
+        <button class="calc-btn btn-orange" data-op="+">+</button>
+
+        <button class="calc-btn" id="btn-sign">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <line x1="8" y1="5" x2="8" y2="13"></line>
+            <line x1="4" y1="9" x2="12" y2="9"></line>
+            <line x1="19" y1="6" x2="9" y2="22"></line>
+            <line x1="16" y1="19" x2="24" y2="19"></line>
+          </svg>
+        </button>
+        <button class="calc-btn" data-num="0">0</button>
+        <button class="calc-btn" data-num=",">,</button>
+        <button class="calc-btn btn-orange" id="btn-eq">=</button>
+      </div>
     </div>
   </div>
 
-  <!-- TELA 2: DISCADOR FAKE iOS -->
+  <!-- ================= TELA 2: DISCADOR ================= -->
   <div class="dialer" id="dialer-screen">
-    <div class="dialer-display" id="dialer-display"></div>
-    <div class="dialer-grid">
-      <button class="dial-btn" data-dial="1"><span class="dial-num">1</span><span class="dial-letters">&nbsp;</span></button>
-      <button class="dial-btn" data-dial="2"><span class="dial-num">2</span><span class="dial-letters">A B C</span></button>
-      <button class="dial-btn" data-dial="3"><span class="dial-num">3</span><span class="dial-letters">D E F</span></button>
+    <div class="dialer-main">
+      <div class="dialer-display" id="dialer-display"></div>
 
-      <button class="dial-btn" data-dial="4"><span class="dial-num">4</span><span class="dial-letters">G H I</span></button>
-      <button class="dial-btn" data-dial="5"><span class="dial-num">5</span><span class="dial-letters">J K L</span></button>
-      <button class="dial-btn" data-dial="6"><span class="dial-num">6</span><span class="dial-letters">M N O</span></button>
+      <div class="dialer-grid">
+        <button class="dial-btn" data-dial="1"><span class="dial-num">1</span><span class="dial-letters">&nbsp;</span></button>
+        <button class="dial-btn" data-dial="2"><span class="dial-num">2</span><span class="dial-letters">A B C</span></button>
+        <button class="dial-btn" data-dial="3"><span class="dial-num">3</span><span class="dial-letters">D E F</span></button>
 
-      <button class="dial-btn" data-dial="7"><span class="dial-num">7</span><span class="dial-letters">P Q R S</span></button>
-      <button class="dial-btn" data-dial="8"><span class="dial-num">8</span><span class="dial-letters">T U V</span></button>
-      <button class="dial-btn" data-dial="9"><span class="dial-num">9</span><span class="dial-letters">W X Y Z</span></button>
+        <button class="dial-btn" data-dial="4"><span class="dial-num">4</span><span class="dial-letters">G H I</span></button>
+        <button class="dial-btn" data-dial="5"><span class="dial-num">5</span><span class="dial-letters">J K L</span></button>
+        <button class="dial-btn" data-dial="6"><span class="dial-num">6</span><span class="dial-letters">M N O</span></button>
 
-      <button class="dial-btn" id="dial-star"><span class="dial-num">*</span></button>
-      <button class="dial-btn" id="dial-zero"><span class="dial-num">0</span><span class="dial-letters">+</span></button>
-      <button class="dial-btn" id="dial-hash"><span class="dial-num">#</span></button>
+        <button class="dial-btn" data-dial="7"><span class="dial-num">7</span><span class="dial-letters">P Q R S</span></button>
+        <button class="dial-btn" data-dial="8"><span class="dial-num">8</span><span class="dial-letters">T U V</span></button>
+        <button class="dial-btn" data-dial="9"><span class="dial-num">9</span><span class="dial-letters">W X Y Z</span></button>
 
-      <div class="dial-spacer"></div>
-      <button class="dial-btn dial-call" id="dial-call-btn">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="#ffffff"><path d="M6.62 10.79a15.05 15.05 0 006.59 6.59l2.2-2.2a1 1 0 011.01-.24c1.12.37 2.33.57 3.58.57a1 1 0 011 1V20a1 1 0 01-1 1C10.61 21 3 13.39 3 4a1 1 0 011-1h3.5a1 1 0 011 1c0 1.25.2 2.46.57 3.58a1 1 0 01-.25 1.01l-2.2 2.2z"/></svg>
-      </button>
-      <button class="dial-clear" id="dial-back-btn">⌫</button>
+        <button class="dial-btn" id="dial-star"><span class="dial-star-txt">*</span></button>
+        <button class="dial-btn" id="dial-zero"><span class="dial-num">0</span><span class="dial-plus">+</span></button>
+        <button class="dial-btn" id="dial-hash"><span class="dial-hash-txt">#</span></button>
+      </div>
+
+      <div class="dial-actions">
+        <div></div>
+        <button class="dial-call" id="dial-call-btn">
+          <svg width="34" height="34" viewBox="0 0 24 24" fill="#ffffff">
+            <path d="M6.62 10.79a15.05 15.05 0 006.59 6.59l2.2-2.2a1 1 0 011.01-.24c1.12.37 2.33.57 3.58.57a1 1 0 011 1V20a1 1 0 01-1 1C10.61 21 3 13.39 3 4a1 1 0 011-1h3.5a1 1 0 011 1c0 1.25.2 2.46.57 3.58a1 1 0 01-.25 1.01l-2.2 2.2z"/>
+          </svg>
+        </button>
+        <button class="dial-back" id="dial-back-btn">
+          <svg width="26" height="22" viewBox="0 0 28 22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9.5 3H23a2.5 2.5 0 0 1 2.5 2.5v11A2.5 2.5 0 0 1 23 19H9.5L2.5 11 9.5 3z"></path>
+            <line x1="13" y1="8" x2="19" y2="14"></line>
+            <line x1="19" y1="8" x2="13" y2="14"></line>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="dialer-tabbar">
+      <div class="tab-item">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        <span>Favoritos</span>
+      </div>
+      <div class="tab-item">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm.8 11H8v-1.6h3.2V6.5h1.6V13z"/></svg>
+        <span>Recentes</span>
+      </div>
+      <div class="tab-item">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 4c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm0 13.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg>
+        <span>Contatos</span>
+      </div>
+      <div class="tab-item active">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+          <circle cx="6.5" cy="5.5" r="2.1"/><circle cx="12" cy="5.5" r="2.1"/><circle cx="17.5" cy="5.5" r="2.1"/>
+          <circle cx="6.5" cy="11" r="2.1"/><circle cx="12" cy="11" r="2.1"/><circle cx="17.5" cy="11" r="2.1"/>
+          <circle cx="6.5" cy="16.5" r="2.1"/><circle cx="12" cy="16.5" r="2.1"/><circle cx="17.5" cy="16.5" r="2.1"/>
+        </svg>
+        <span>Teclado numérico</span>
+      </div>
+      <div class="tab-item">
+        <svg width="24" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="6.5" cy="12" r="4"/><circle cx="17.5" cy="12" r="4"/><line x1="6.5" y1="16" x2="17.5" y2="16"/>
+        </svg>
+        <span>Correio de Voz</span>
+      </div>
     </div>
   </div>
 
   <script>
-    // --- ELEMENTOS ---
     const calcScreen = document.getElementById('calc-screen');
     const dialerScreen = document.getElementById('dialer-screen');
     const displayEl = document.getElementById('display');
     const dialerDisplayEl = document.getElementById('dialer-display');
+    const dialBackBtn = document.getElementById('dial-back-btn');
     const btnAc = document.getElementById('btn-ac');
     const btnSign = document.getElementById('btn-sign');
     const btnPercent = document.getElementById('btn-percent');
@@ -522,9 +719,9 @@
     const voiceStartInput = document.getElementById('voice-start-input');
     const voiceEndInput = document.getElementById('voice-end-input');
 
-    // --- CONFIGURAÇÕES SALVAS ---
-    let appSkin = localStorage.getItem('appSkin') || 'calc'; // 'calc' | 'dialer'
-    let ocrMode = localStorage.getItem('ocrMode') || 'date'; // 'date' | 'normal' | 't9'
+    // Configurações salvas
+    let appSkin = localStorage.getItem('appSkin') || 'calc';
+    let ocrMode = localStorage.getItem('ocrMode') || 'date';
     let revealMode = localStorage.getItem('revealMode') || 'immediate';
     let zoomLevel = Number(localStorage.getItem('zoomLevel')) || 1;
     let camFacing = localStorage.getItem('camFacing') || 'environment';
@@ -537,7 +734,6 @@
     voiceStartInput.value = voiceStartPhrase;
     voiceEndInput.value = voiceEndPhrase;
 
-    // --- ESTADO ---
     let currentInput = '0';
     let previousInput = null;
     let operator = null;
@@ -555,7 +751,6 @@
     let localFails = 0;
     const MAX_LOCAL_TRIES_BEFORE_API = 3;
 
-    // --- HELPER TOQUE LONGO ---
     function bindLongPress(el, duration, onLongPress, onShortTap) {
       let timer = null;
       let didLongPress = false;
@@ -571,10 +766,7 @@
 
       const end = (e) => {
         if (e.type === 'touchend') e.preventDefault();
-        if (timer) {
-          clearTimeout(timer);
-          timer = null;
-        }
+        if (timer) { clearTimeout(timer); timer = null; }
         if (!didLongPress && onShortTap) onShortTap();
       };
 
@@ -590,7 +782,6 @@
       el.addEventListener('mouseleave', cancel);
     }
 
-    // --- PAINEL DE CONTROLE ---
     function openControlPanel() {
       apiKeyInput.value = geminiApiKey;
       voiceStartInput.value = voiceStartPhrase;
@@ -674,7 +865,6 @@
 
     syncControlUI();
 
-    // --- EXIBIÇÃO DO RESULTADO EM QUALQUER TELA ---
     function exibirResultadoNaTela(valor) {
       if (appSkin === 'dialer') {
         dialerValue = String(valor);
@@ -711,14 +901,13 @@
 
       if (result.length > 9) displayEl.style.fontSize = '52px';
       else if (result.length > 6) displayEl.style.fontSize = '66px';
-      else displayEl.style.fontSize = '82px';
+      else displayEl.style.fontSize = '84px';
 
       return result;
     }
 
     function updateDisplay() {
       displayEl.textContent = formatDisplay(currentInput);
-      btnAc.textContent = currentInput === '0' && !previousInput ? 'AC' : 'C';
     }
 
     function inputNumber(num) {
@@ -780,6 +969,15 @@
       updateDisplay();
     }
 
+    function backspaceCalc() {
+      if (waitingForOperand || currentInput.length <= 1 || (currentInput.length === 2 && currentInput.startsWith('-'))) {
+        currentInput = '0';
+      } else {
+        currentInput = currentInput.slice(0, -1);
+      }
+      updateDisplay();
+    }
+
     function toggleSign() {
       if (currentInput !== '0') {
         currentInput = currentInput.startsWith('-') ? currentInput.slice(1) : '-' + currentInput;
@@ -800,16 +998,17 @@
       btn.addEventListener('click', () => handleOperator(btn.dataset.op));
     });
     document.getElementById('btn-eq').addEventListener('click', handleEquals);
+    document.getElementById('btn-backspace').addEventListener('click', backspaceCalc);
 
-    // Gatilhos da Calculadora
     bindLongPress(btnSign, 800, openControlPanel, toggleSign);
     bindLongPress(btnAc, 800, () => { isScanning ? stopSecretScanner() : startSecretScanner(); }, clearCalc);
     bindLongPress(btnPercent, 800, () => { isListening ? stopVoiceListener() : startVoiceListener(); }, calcPercent);
 
-    // --- DISCADOR FAKE ---
+    // --- DISCADOR ---
     function updateDialerDisplay() {
       dialerDisplayEl.textContent = dialerValue;
       dialerDisplayEl.style.fontSize = dialerValue.length > 11 ? '28px' : '38px';
+      dialBackBtn.classList.toggle('visible', dialerValue.length > 0);
     }
 
     function appendDialer(char) {
@@ -823,7 +1022,7 @@
       btn.addEventListener('click', () => appendDialer(btn.dataset.dial));
     });
 
-    document.getElementById('dial-back-btn').addEventListener('click', () => {
+    dialBackBtn.addEventListener('click', () => {
       dialerValue = dialerValue.slice(0, -1);
       updateDialerDisplay();
     });
@@ -836,19 +1035,20 @@
       }
     });
 
-    // Gatilhos do Discador
     bindLongPress(document.getElementById('dial-star'), 800, openControlPanel, () => appendDialer('*'));
     bindLongPress(document.getElementById('dial-zero'), 800, () => { isScanning ? stopSecretScanner() : startSecretScanner(); }, () => appendDialer('0'));
     bindLongPress(document.getElementById('dial-hash'), 800, () => { isListening ? stopVoiceListener() : startVoiceListener(); }, () => appendDialer('#'));
 
-    // --- CONVERSORES (T9, DATA, NÚMERO) ---
+    // --- CONVERSORES ---
     function normalizarTexto(str) {
       return str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     }
 
     function palavraParaT9(texto) {
-      const limpo = normalizarTexto(texto).replace(/[^a-z]/g, '');
-      if (limpo.length < 2) return null;
+      // Pega apenas a primeira palavra alfabética limpa (evita juntar texto de fundo)
+      const palavras = normalizarTexto(texto).match(/[a-z]{2,15}/g);
+      if (!palavras || palavras.length === 0) return null;
+      const palavra = palavras[0];
       const mapa = {
         a:'2', b:'2', c:'2',
         d:'3', e:'3', f:'3',
@@ -859,7 +1059,7 @@
         t:'8', u:'8', v:'8',
         w:'9', x:'9', y:'9', z:'9'
       };
-      return limpo.split('').map(ch => mapa[ch] || '').join('');
+      return palavra.split('').map(ch => mapa[ch] || '').join('');
     }
 
     function calcularDiasDeValores(dia, mes, ano) {
@@ -879,7 +1079,6 @@
     }
 
     function calcularDiasDaData(texto) {
-      // 1. Tenta formato por extenso ou com barras/espaços (ex: "5 de dezembro de 1940" ou "05/12/40")
       const norm = normalizarTexto(texto);
       const meses = {
         janeiro:1, jan:1, fevereiro:2, fev:2, marco:3, mar:3, abril:4, abr:4,
@@ -887,21 +1086,18 @@
         setembro:9, set:9, outubro:10, out:10, novembro:11, nov:11, dezembro:12, dez:12
       };
 
-      const regexExtenso = /(\d{1,2})\s*(?:de\s*)?([a-z]+)\s*(?:de\s*)?(\d{2,4})/;
-      const mExt = norm.match(regexExtenso);
+      const mExt = norm.match(/(\d{1,2})\s*(?:de\s*)?([a-z]+)\s*(?:de\s*)?(\d{2,4})/);
       if (mExt && meses[mExt[2]]) {
         const res = calcularDiasDeValores(parseInt(mExt[1], 10), meses[mExt[2]], parseInt(mExt[3], 10));
         if (res !== null) return res;
       }
 
-      const regexBarras = /(\d{1,2})[\/\-.\s]+(\d{1,2})[\/\-.\s]+(\d{2,4})/;
-      const mBar = norm.match(regexBarras);
+      const mBar = norm.match(/(\d{1,2})[\/\-.\s]+(\d{1,2})[\/\-.\s]+(\d{2,4})/);
       if (mBar) {
         const res = calcularDiasDeValores(parseInt(mBar[1], 10), parseInt(mBar[2], 10), parseInt(mBar[3], 10));
         if (res !== null) return res;
       }
 
-      // 2. Tenta dígitos seguidos (5 a 8 dígitos, ex: 51240 ou 210479)
       const semSeparadores = texto.replace(/[.,]/g, '');
       const candidatos = semSeparadores.match(/\d{5,8}/g);
       if (!candidatos) return null;
@@ -939,7 +1135,7 @@
       return extrairNumeroNormal(texto);
     }
 
-    // --- INPUT POR VOZ (COM FRASES ANTES E DEPOIS) ---
+    // --- INPUT POR VOZ ---
     function startVoiceListener() {
       stopSecretScanner();
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -964,7 +1160,6 @@
         for (let i = 0; i < event.results.length; i++) {
           transcript += event.results[i][0].transcript + ' ';
         }
-
         debugText.textContent = 'Voz: ' + transcript.trim();
 
         const normFull = normalizarTexto(transcript);
@@ -979,17 +1174,12 @@
             if (idxEnd !== -1) {
               const miolo = transcript.slice(afterStart, idxEnd).trim();
               const resultado = processarTextoCapturado(miolo);
-              if (resultado !== null) {
-                finalizarCaptura(resultado, 'Voz');
-              }
+              if (resultado !== null) finalizarCaptura(resultado, 'Voz');
             }
           }
         } else {
-          // Se o usuário deixar frases em branco, tenta capturar direto
           const resultado = processarTextoCapturado(transcript);
-          if (resultado !== null) {
-            finalizarCaptura(resultado, 'Voz');
-          }
+          if (resultado !== null) finalizarCaptura(resultado, 'Voz');
         }
       };
 
@@ -1004,11 +1194,7 @@
         }
       };
 
-      try {
-        recognition.start();
-      } catch (e) {
-        stopVoiceListener();
-      }
+      try { recognition.start(); } catch (e) { stopVoiceListener(); }
     }
 
     function stopVoiceListener() {
@@ -1017,23 +1203,15 @@
         try { recognition.stop(); } catch (e) {}
         recognition = null;
       }
-      if (forcedResult === null && !isScanning) {
-        statusDot.className = '';
-      }
+      if (forcedResult === null && !isScanning) statusDot.className = '';
     }
 
-    // --- MOTOR 1: OCR LOCAL (TESSERACT.JS) ---
+    // --- OCR LOCAL (USADO APENAS PARA NÚMEROS/DATAS) ---
     async function initLocalWorker() {
       if (!ocrWorker && typeof Tesseract !== 'undefined') {
         debugStatus.textContent = 'Preparando OCR local...';
-        ocrWorker = await Tesseract.createWorker(ocrMode === 't9' ? 'por' : 'eng');
-      }
-      if (ocrWorker) {
-        await ocrWorker.setParameters({
-          tessedit_char_whitelist: ocrMode === 't9'
-            ? 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz '
-            : '0123456789., '
-        });
+        ocrWorker = await Tesseract.createWorker('eng');
+        await ocrWorker.setParameters({ tessedit_char_whitelist: '0123456789., ' });
       }
     }
 
@@ -1065,11 +1243,11 @@
       ctx.putImageData(imgData, 0, 0);
     }
 
-    // --- MOTOR 2: FALLBACK API GEMINI ---
+    // --- API GEMINI ---
     async function consultarGemini(base64Jpeg) {
       let prompt = '';
       if (ocrMode === 't9') {
-        prompt = "Encontre a palavra principal escrita em um papel ou na tela de um celular nesta foto. Responda SOMENTE com essa palavra (apenas letras, sem explicações). Se não houver palavra legível, responda: NONE";
+        prompt = "Leia APENAS a única palavra principal escrita à mão em um papel ou exibida em destaque na tela de um celular nesta foto (ex: um nome como Marisa, casa, amor). IGNORE qualquer outro texto pequeno, fundo ou marcas. Responda SOMENTE com essa única palavra, sem pontuação e sem explicações. Se não houver nenhuma palavra clara, responda exatamente: NONE";
       } else if (ocrMode === 'date') {
         prompt = "Encontre a tela de outro celular com uma calculadora aberta nesta foto (mesmo longe ou inclinada). Leia APENAS o número grande no visor principal de resultado (geralmente 5 a 8 dígitos como 51240, 210479 ou 5121940). IGNORE COMPLETAMENTE os botões do teclado (0 a 9), relógio e bateria. Responda SOMENTE com os dígitos puros do visor. Se não houver número legível, responda: NONE";
       } else {
@@ -1098,10 +1276,18 @@
       return (json.candidates?.[0]?.content?.parts?.[0]?.text || 'NONE').trim();
     }
 
-    // --- LOOP HÍBRIDO DE CÂMERA ---
+    // --- LOOP DE CÂMERA ---
     async function startSecretScanner() {
       stopVoiceListener();
       if (isScanning) return;
+
+      if (ocrMode === 't9' && !geminiApiKey) {
+        statusDot.className = 'error';
+        debugStatus.textContent = 'Modo Palavra T9 precisa da Chave API no Painel!';
+        openControlPanel();
+        return;
+      }
+
       isScanning = true;
       forcedResult = null;
       hardwareZoomApplied = false;
@@ -1131,7 +1317,9 @@
           }
         }
 
-        await initLocalWorker();
+        if (ocrMode !== 't9') {
+          await initLocalWorker();
+        }
         scanFrame();
       } catch (err) {
         debugStatus.textContent = 'Erro câmera: ' + err.message;
@@ -1164,7 +1352,8 @@
         const dataUrl = colorCanvas.toDataURL('image/jpeg', 0.88);
         if (showDebug) debugPreview.src = dataUrl;
 
-        const usarApiAgora = geminiApiKey && localFails >= MAX_LOCAL_TRIES_BEFORE_API;
+        // No modo Palavra T9, pula o Tesseract e vai direto na API Gemini
+        const usarApiAgora = (ocrMode === 't9') || (geminiApiKey && localFails >= MAX_LOCAL_TRIES_BEFORE_API);
 
         if (!usarApiAgora && ocrWorker) {
           statusDot.className = 'scanning-local';
@@ -1188,7 +1377,7 @@
           localFails++;
         } else if (geminiApiKey) {
           statusDot.className = 'scanning-api';
-          debugStatus.textContent = 'Local falhou → Chamando API Gemini...';
+          debugStatus.textContent = ocrMode === 't9' ? 'Lendo palavra (API)...' : 'Reforço API Gemini...';
 
           try {
             const base64Data = dataUrl.split(',')[1];
@@ -1211,7 +1400,7 @@
       }
 
       if (isScanning) {
-        scanTimer = setTimeout(scanFrame, 350);
+        scanTimer = setTimeout(scanFrame, ocrMode === 't9' ? 900 : 350);
       }
     }
 
@@ -1222,9 +1411,7 @@
         mediaStream.getTracks().forEach(track => track.stop());
         mediaStream = null;
       }
-      if (forcedResult === null && !isListening) {
-        statusDot.className = '';
-      }
+      if (forcedResult === null && !isListening) statusDot.className = '';
     }
   </script>
 </body>
