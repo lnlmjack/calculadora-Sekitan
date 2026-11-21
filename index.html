@@ -19,7 +19,7 @@
       -webkit-touch-callout: none;
     }
 
-    input {
+    input, select {
       user-select: text;
       -webkit-user-select: text;
     }
@@ -381,7 +381,7 @@
 
     .control-box {
       width: 100%;
-      max-width: 370px;
+      max-width: 380px;
       max-height: 90dvh;
       overflow-y: auto;
       background: #1c1c1e;
@@ -412,12 +412,12 @@
 
     .api-input {
       width: 100%;
-      padding: 9px 11px;
-      border-radius: 10px;
+      padding: 8px 10px;
+      border-radius: 8px;
       border: 1px solid #3a3a3c;
       background: #2c2c2e;
       color: #fff;
-      font-size: 13px;
+      font-size: 12px;
       outline: none;
     }
 
@@ -455,6 +455,76 @@
       font-weight: 600;
     }
 
+    /* Lista dinâmica de gatilhos */
+    .triggers-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .trigger-card {
+      background: #262629;
+      border: 1px solid #3a3a3c;
+      border-radius: 10px;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .trigger-row-top {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .trigger-select {
+      width: 100%;
+      padding: 6px 8px;
+      border-radius: 7px;
+      border: 1px solid #3a3a3c;
+      background: #1c1c1e;
+      color: #ff9f0a;
+      font-size: 12px;
+      font-weight: 600;
+      outline: none;
+    }
+
+    .trigger-del {
+      width: 28px;
+      height: 28px;
+      border-radius: 7px;
+      border: none;
+      background: #3a3a3c;
+      color: #ff453a;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .trigger-inputs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+
+    .btn-add-trigger {
+      width: 100%;
+      border: 1px dashed #ff9f0a;
+      border-radius: 9px;
+      padding: 8px;
+      background: transparent;
+      color: #ff9f0a;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
     .ctrl-close {
       width: 100%;
       border: none;
@@ -464,7 +534,7 @@
       font-weight: 600;
       background: #333;
       color: #fff;
-      margin-top: 4px;
+      margin-top: 6px;
       cursor: pointer;
     }
   </style>
@@ -496,7 +566,7 @@
       </div>
 
       <div class="control-group">
-        <span class="control-label">Modo de Leitura (OCR e Voz)</span>
+        <span class="control-label">Modo da Câmera (OCR)</span>
         <div class="option-row-3">
           <button class="ctrl-btn" id="mode-date">Conta Dias</button>
           <button class="ctrl-btn" id="mode-normal">Nº Normal</button>
@@ -513,11 +583,9 @@
       </div>
 
       <div class="control-group">
-        <span class="control-label">Voz: Frase ANTES e Frase DEPOIS</span>
-        <div class="option-row">
-          <input type="text" id="voice-start-input" class="api-input" placeholder="Ex: a palavra foi" />
-          <input type="text" id="voice-end-input" class="api-input" placeholder="Ex: correto" />
-        </div>
+        <span class="control-label">Gatilhos de Voz (todos ativos ao mesmo tempo)</span>
+        <div class="triggers-list" id="triggers-list"></div>
+        <button class="btn-add-trigger" id="btn-add-trigger">+ Adicionar gatilho</button>
       </div>
 
       <div class="control-group">
@@ -710,8 +778,7 @@
     const debugPreview = document.getElementById('debug-preview');
     const controlOverlay = document.getElementById('control-overlay');
     const apiKeyInput = document.getElementById('api-key-input');
-    const voiceStartInput = document.getElementById('voice-start-input');
-    const voiceEndInput = document.getElementById('voice-end-input');
+    const triggersListEl = document.getElementById('triggers-list');
 
     // Configurações salvas
     let appSkin = localStorage.getItem('appSkin') || 'calc';
@@ -721,12 +788,23 @@
     let camFacing = localStorage.getItem('camFacing') || 'environment';
     let showDebug = localStorage.getItem('showDebug') === 'true';
     let geminiApiKey = localStorage.getItem('geminiApiKey') || '';
-    let voiceStartPhrase = localStorage.getItem('voiceStartPhrase') || 'a data foi';
-    let voiceEndPhrase = localStorage.getItem('voiceEndPhrase') || 'correto';
 
+    const DEFAULT_TRIGGERS = [
+      { start: 'a data foi', end: 'correto', mode: 'date' },
+      { start: 'o numero foi', end: 'correto', mode: 'normal' },
+      { start: 'a palavra foi', end: 'correto', mode: 't9' }
+    ];
+
+    function loadTriggers() {
+      try {
+        const saved = JSON.parse(localStorage.getItem('voiceTriggers'));
+        if (Array.isArray(saved) && saved.length > 0) return saved;
+      } catch (e) {}
+      return JSON.parse(JSON.stringify(DEFAULT_TRIGGERS));
+    }
+
+    let voiceTriggers = loadTriggers();
     apiKeyInput.value = geminiApiKey;
-    voiceStartInput.value = voiceStartPhrase;
-    voiceEndInput.value = voiceEndPhrase;
 
     let currentInput = '0';
     let previousInput = null;
@@ -743,7 +821,59 @@
     let accumulatedTranscript = '';
     let hardwareZoomApplied = false;
 
-    // Toque longo compatível com iOS: dispara de forma síncrona ao soltar (libera microfone/câmera no Safari)
+    // --- RENDERIZAÇÃO DA LISTA DINÂMICA DE GATILHOS ---
+    function renderTriggersUI() {
+      triggersListEl.innerHTML = '';
+      voiceTriggers.forEach((trig, index) => {
+        const card = document.createElement('div');
+        card.className = 'trigger-card';
+        card.innerHTML = `
+          <div class="trigger-row-top">
+            <select class="trigger-select" data-idx="${index}">
+              <option value="date" ${trig.mode === 'date' ? 'selected' : ''}>Conta de Dias (Data)</option>
+              <option value="normal" ${trig.mode === 'normal' ? 'selected' : ''}>Número Normal</option>
+              <option value="t9" ${trig.mode === 't9' ? 'selected' : ''}>Palavra → T9</option>
+            </select>
+            <button class="trigger-del" data-del="${index}" title="Remover">×</button>
+          </div>
+          <div class="trigger-inputs">
+            <input type="text" class="api-input trig-start" data-idx="${index}" placeholder="Frase ANTES" value="${trig.start.replace(/"/g, '&quot;')}" />
+            <input type="text" class="api-input trig-end" data-idx="${index}" placeholder="Frase DEPOIS" value="${trig.end.replace(/"/g, '&quot;')}" />
+          </div>
+        `;
+        triggersListEl.appendChild(card);
+      });
+
+      triggersListEl.querySelectorAll('.trigger-select').forEach(sel => {
+        sel.addEventListener('change', (e) => {
+          voiceTriggers[e.target.dataset.idx].mode = e.target.value;
+        });
+      });
+      triggersListEl.querySelectorAll('.trig-start').forEach(inp => {
+        inp.addEventListener('input', (e) => {
+          voiceTriggers[e.target.dataset.idx].start = e.target.value;
+        });
+      });
+      triggersListEl.querySelectorAll('.trig-end').forEach(inp => {
+        inp.addEventListener('input', (e) => {
+          voiceTriggers[e.target.dataset.idx].end = e.target.value;
+        });
+      });
+      triggersListEl.querySelectorAll('.trigger-del').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const idx = Number(e.target.dataset.del);
+          voiceTriggers.splice(idx, 1);
+          renderTriggersUI();
+        });
+      });
+    }
+
+    document.getElementById('btn-add-trigger').addEventListener('click', () => {
+      voiceTriggers.push({ start: '', end: 'correto', mode: 't9' });
+      renderTriggersUI();
+    });
+
+    // Toque longo compatível com iOS (dispara ao soltar o dedo)
     function bindLongPressOnRelease(el, minHoldMs, onLongPress, onShortTap) {
       let pressStart = 0;
 
@@ -765,9 +895,7 @@
         }
       };
 
-      const cancel = () => {
-        pressStart = 0;
-      };
+      const cancel = () => { pressStart = 0; };
 
       el.addEventListener('touchstart', start, { passive: false });
       el.addEventListener('touchend', end, { passive: false });
@@ -779,8 +907,7 @@
 
     function openControlPanel() {
       apiKeyInput.value = geminiApiKey;
-      voiceStartInput.value = voiceStartPhrase;
-      voiceEndInput.value = voiceEndPhrase;
+      renderTriggersUI();
       controlOverlay.classList.add('visible');
     }
 
@@ -850,11 +977,12 @@
 
     document.getElementById('btn-close-panel').addEventListener('click', () => {
       geminiApiKey = apiKeyInput.value.trim();
-      voiceStartPhrase = voiceStartInput.value.trim();
-      voiceEndPhrase = voiceEndInput.value.trim();
       localStorage.setItem('geminiApiKey', geminiApiKey);
-      localStorage.setItem('voiceStartPhrase', voiceStartPhrase);
-      localStorage.setItem('voiceEndPhrase', voiceEndPhrase);
+      // Limpa gatilhos vazios e salva
+      voiceTriggers = voiceTriggers
+        .map(t => ({ start: t.start.trim(), end: t.end.trim(), mode: t.mode }))
+        .filter(t => t.start.length > 0 || t.end.length > 0);
+      localStorage.setItem('voiceTriggers', JSON.stringify(voiceTriggers));
       controlOverlay.classList.remove('visible');
     });
 
@@ -995,7 +1123,6 @@
     document.getElementById('btn-eq').addEventListener('click', handleEquals);
     document.getElementById('btn-backspace').addEventListener('click', backspaceCalc);
 
-    // Gatilhos da Calculadora (segurar ~0.7s e soltar)
     bindLongPressOnRelease(btnSign, 650, openControlPanel, toggleSign);
     bindLongPressOnRelease(btnAc, 650, () => { isScanning ? stopSecretScanner() : startSecretScanner(); }, clearCalc);
     bindLongPressOnRelease(btnPercent, 650, () => { isListening ? stopVoiceListener() : startVoiceListener(); }, calcPercent);
@@ -1031,7 +1158,6 @@
       }
     });
 
-    // Gatilhos do Discador (segurar ~0.7s e soltar)
     bindLongPressOnRelease(document.getElementById('dial-star'), 650, openControlPanel, () => appendDialer('*'));
     bindLongPressOnRelease(document.getElementById('dial-zero'), 650, () => { isScanning ? stopSecretScanner() : startSecretScanner(); }, () => appendDialer('0'));
     bindLongPressOnRelease(document.getElementById('dial-hash'), 650, () => { isListening ? stopVoiceListener() : startVoiceListener(); }, () => appendDialer('#'));
@@ -1126,35 +1252,24 @@
     }
 
     function extrairNumeroNormal(texto) {
-      const semSeparadores = texto.replace(/[.,]/g, '');
-      const candidatos = semSeparadores.match(/\d{2,}/g);
+      const semSeparadores = texto.replace(/[.,\s]/g, '');
+      const candidatos = semSeparadores.match(/\d{1,}/g);
       if (!candidatos) return null;
       candidatos.sort((a, b) => b.length - a.length);
       return candidatos[0];
     }
 
-    function processarTextoCapturado(texto) {
-      if (ocrMode === 't9') return palavraParaT9(texto);
-
-      if (ocrMode === 'date') {
-        const dias = calcularDiasDaData(texto);
-        if (dias !== null) return dias;
-      } else {
-        const num = extrairNumeroNormal(texto);
-        if (num !== null) return num;
-      }
-
-      // Se estiver na tela do Discador e veio uma palavra, converte automaticamente para T9
-      if (appSkin === 'dialer') {
-        return palavraParaT9(texto);
-      }
-
-      return null;
+    function processarPorModo(texto, modo) {
+      if (modo === 't9') return palavraParaT9(texto);
+      if (modo === 'date') return calcularDiasDaData(texto);
+      return extrairNumeroNormal(texto);
     }
 
-    // --- INPUT POR VOZ (OTIMIZADO PARA iOS) ---
+    // --- INPUT POR VOZ (MÚLTIPLOS GATILHOS + REINÍCIO LIMPO NO iOS) ---
     function startVoiceListener() {
       stopSecretScanner();
+      stopVoiceListener();
+
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (!SpeechRecognition) {
         statusDot.className = 'error';
@@ -1166,16 +1281,17 @@
       forcedResult = null;
       accumulatedTranscript = '';
       statusDot.className = 'listening';
-      debugStatus.textContent = `Mic ABERTO! Diga "${voiceStartPhrase}" ... "${voiceEndPhrase}"`;
+      debugStatus.textContent = `Mic ABERTO (${voiceTriggers.length} gatilhos ativos)`;
       debugText.textContent = 'Voz: ouvindo...';
 
-      recognition = new SpeechRecognition();
-      recognition.lang = 'pt-BR';
-      recognition.continuous = true;
-      recognition.interimResults = true;
+      const rec = new SpeechRecognition();
+      rec.lang = 'pt-BR';
+      rec.continuous = true;
+      rec.interimResults = true;
+      recognition = rec;
 
-      recognition.onresult = (event) => {
-        if (!isListening) return;
+      rec.onresult = (event) => {
+        if (!isListening || recognition !== rec) return;
 
         let interim = '';
         for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -1189,47 +1305,54 @@
 
         const fullRaw = (accumulatedTranscript + ' ' + interim).trim();
         debugText.textContent = 'Voz: ' + fullRaw;
-
         const normFull = normalizarTexto(fullRaw);
-        const normStart = normalizarTexto(voiceStartPhrase);
-        const normEnd = normalizarTexto(voiceEndPhrase);
 
-        if (normStart && normEnd) {
-          const idxStart = normFull.indexOf(normStart);
-          if (idxStart !== -1) {
-            const afterStart = idxStart + normStart.length;
-            const idxEnd = normFull.indexOf(normEnd, afterStart);
-            if (idxEnd !== -1) {
-              const miolo = normFull.slice(afterStart, idxEnd).trim();
-              const resultado = processarTextoCapturado(miolo);
-              if (resultado !== null) {
-                finalizarCaptura(resultado, 'Voz');
+        // Testa todos os gatilhos cadastrados simultaneamente
+        if (voiceTriggers.length > 0) {
+          for (const trig of voiceTriggers) {
+            const normStart = normalizarTexto(trig.start || '');
+            const normEnd = normalizarTexto(trig.end || '');
+            if (!normStart || !normEnd) continue;
+
+            const idxStart = normFull.indexOf(normStart);
+            if (idxStart !== -1) {
+              const afterStart = idxStart + normStart.length;
+              const idxEnd = normFull.indexOf(normEnd, afterStart);
+              if (idxEnd !== -1) {
+                const miolo = normFull.slice(afterStart, idxEnd).trim();
+                const resultado = processarPorModo(miolo, trig.mode);
+                if (resultado !== null) {
+                  finalizarCaptura(resultado, 'Voz ' + trig.mode.toUpperCase());
+                  return;
+                }
               }
             }
           }
         } else {
-          const resultado = processarTextoCapturado(normFull);
+          // Fallback caso o usuário apague todos os gatilhos
+          const resultado = processarPorModo(normFull, ocrMode);
           if (resultado !== null) {
             finalizarCaptura(resultado, 'Voz');
           }
         }
       };
 
-      recognition.onerror = (e) => {
-        if (e.error === 'no-speech') return;
+      rec.onerror = (e) => {
+        if (recognition !== rec) return;
+        if (e.error === 'no-speech' || e.error === 'aborted') return;
         statusDot.className = 'error';
         debugStatus.textContent = 'Erro Mic: ' + e.error;
         stopVoiceListener();
       };
 
-      recognition.onend = () => {
-        if (isListening) {
-          try { recognition.start(); } catch (e) { stopVoiceListener(); }
+      rec.onend = () => {
+        if (isListening && recognition === rec) {
+          try { rec.start(); } catch (e) { stopVoiceListener(); }
         }
       };
 
       try {
-        recognition.start();
+        rec.start();
       } catch (e) {
         statusDot.className = 'error';
         debugStatus.textContent = 'Erro ao iniciar Mic: ' + e.message;
@@ -1240,8 +1363,12 @@
     function stopVoiceListener() {
       isListening = false;
       if (recognition) {
-        try { recognition.abort(); } catch (e) {}
+        const oldRec = recognition;
         recognition = null;
+        oldRec.onresult = null;
+        oldRec.onerror = null;
+        oldRec.onend = null;
+        try { oldRec.stop(); } catch (e) {}
       }
       if (forcedResult === null && !isScanning) statusDot.className = '';
     }
@@ -1249,7 +1376,7 @@
     // --- API GEMINI (MODO TURBO - 3.5 FLASH LITE) ---
     async function consultarGemini(base64Jpeg) {
       let prompt = '';
-      if (ocrMode === 't9' || (appSkin === 'dialer' && ocrMode === 't9')) {
+      if (ocrMode === 't9') {
         prompt = "Leia APENAS a palavra principal escrita à mão em um papel ou em destaque na tela de um celular nesta foto (ex: Marisa, casa, amor). Responda SOMENTE com essa única palavra, sem pontuação e sem explicações. Se não houver nenhuma palavra clara, responda: NONE";
       } else if (ocrMode === 'date') {
         prompt = "Encontre a tela de outro celular com uma calculadora aberta. Leia APENAS o número grande no visor principal de resultado (5 a 8 dígitos como 51240, 210479 ou 5121940). IGNORE botões do teclado (0 a 9), relógio e bateria. Responda SOMENTE com os dígitos puros. Se não houver número legível, responda: NONE";
@@ -1358,7 +1485,7 @@
           debugText.textContent = 'IA leu: ' + respostaIA;
 
           if (respostaIA && !respostaIA.toUpperCase().includes('NONE')) {
-            const resultado = processarTextoCapturado(respostaIA);
+            const resultado = processarPorModo(respostaIA, ocrMode);
             if (resultado !== null) {
               finalizarCaptura(resultado, 'Turbo');
               return;
