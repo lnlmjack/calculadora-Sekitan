@@ -49,7 +49,6 @@
       display: none;
     }
 
-    /* ================= TELA 1: CALCULADORA ================= */
     .calculator {
       position: relative;
       z-index: 2;
@@ -143,7 +142,6 @@
       touch-action: none;
     }
 
-    /* ================= TELA 2: DISCADOR ================= */
     .dialer {
       position: relative;
       z-index: 2;
@@ -312,7 +310,6 @@
       color: #0a84ff;
     }
 
-    /* ================= INDICADOR DISCRETO ================= */
     #status-dot {
       position: fixed;
       z-index: 10;
@@ -331,7 +328,6 @@
     #status-dot.ready { background-color: #ff9f0a; }
     #status-dot.error { background-color: #ff453a; }
 
-    /* ================= PAINEL DE TESTE (DEBUG) ================= */
     #debug-panel {
       display: none;
       position: fixed;
@@ -361,7 +357,6 @@
       display: block;
     }
 
-    /* ================= PAINEL DE CONTROLE OCULTO ================= */
     #control-overlay {
       display: none;
       position: fixed;
@@ -476,7 +471,6 @@
       margin-bottom: 6px;
     }
 
-    /* Lista dinâmica de gatilhos */
     .triggers-list {
       display: flex;
       flex-direction: column;
@@ -566,18 +560,16 @@
   <canvas id="hidden-canvas"></canvas>
   <div id="status-dot"></div>
 
-  <!-- Painel de Teste (Debug) -->
   <div id="debug-panel">
-    <div id="debug-status">Status: Parado (v27)</div>
+    <div id="debug-status">Status: Parado (v28)</div>
     <div id="debug-text">Leitura: —</div>
     <img id="debug-preview" alt="" />
   </div>
 
-  <!-- Painel de Controle Oculto -->
   <div id="control-overlay">
     <div class="control-box">
       <h2>Painel de Controle</h2>
-      <div class="version-badge" id="app-version-badge">Versão v27</div>
+      <div class="version-badge" id="app-version-badge">Versão v28</div>
 
       <div class="control-group">
         <span class="control-label">Tela do App</span>
@@ -648,7 +640,6 @@
     </div>
   </div>
 
-  <!-- ================= TELA 1: CALCULADORA ================= -->
   <div class="calculator" id="calc-screen">
     <div class="calc-topbar">
       <div class="calc-top-btn">
@@ -718,7 +709,6 @@
     </div>
   </div>
 
-  <!-- ================= TELA 2: DISCADOR ================= -->
   <div class="dialer" id="dialer-screen">
     <div class="dialer-main">
       <div class="dialer-display" id="dialer-display"></div>
@@ -789,7 +779,7 @@
   </div>
 
   <script>
-    const APP_VERSION = 'v27';
+    const APP_VERSION = 'v28';
     const MAX_SCAN_ATTEMPTS = 3;
     const RETRY_DELAY_MS = 1200;
     const EMBEDDED_API_KEY = 'AQ.Ab8RN6JcTOEUrJ_EV1A_gq8Vuk381T9OEtdEG_QzycACGoOsqQ';
@@ -907,6 +897,7 @@
     let voiceReopenTimer = null;
     let currentRecognition = null;
     let accumulatedTranscript = '';
+    let lastMicClosedAt = 0;
     let hardwareZoomApplied = false;
 
     function resetCycleMemory() {
@@ -1389,7 +1380,7 @@
 
       const rec = new SpeechRecognition();
       rec.lang = 'pt-BR';
-      rec.continuous = false;
+      rec.continuous = true;
       rec.interimResults = true;
       currentRecognition = rec;
 
@@ -1460,6 +1451,7 @@
       };
 
       rec.onend = () => {
+        lastMicClosedAt = Date.now();
         if (currentRecognition === rec) {
           destroyRecognitionInstance(rec);
           currentRecognition = null;
@@ -1506,10 +1498,14 @@
       forcedResult = null;
       accumulatedTranscript = '';
       statusDot.className = 'listening';
-      debugStatus.textContent = hadPreviousSession ? 'Recriando Mic do zero (800ms)...' : `Abrindo Mic (${voiceTriggers.length} gatilhos)...`;
+
+      const sinceClose = lastMicClosedAt ? Date.now() - lastMicClosedAt : 999999;
+      const needsCooldown = hadPreviousSession || sinceClose < 900;
+
+      debugStatus.textContent = needsCooldown ? 'Recriando Mic do zero (800ms)...' : `Abrindo Mic (${voiceTriggers.length} gatilhos)...`;
       debugText.textContent = 'Voz: ouvindo conversa...';
 
-      if (hadPreviousSession) {
+      if (needsCooldown) {
         voiceReopenTimer = setTimeout(() => {
           if (isListening) launchRecognitionSession();
         }, 800);
@@ -1524,6 +1520,7 @@
       clearTimeout(voiceReopenTimer);
       accumulatedTranscript = '';
       if (currentRecognition) {
+        lastMicClosedAt = Date.now();
         const oldRec = currentRecognition;
         currentRecognition = null;
         destroyRecognitionInstance(oldRec);
