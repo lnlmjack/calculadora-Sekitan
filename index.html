@@ -555,7 +555,7 @@
 
   <!-- Painel de Teste (Debug) -->
   <div id="debug-panel">
-    <div id="debug-status">Status: Parado (v19 · Ciclo Limpo)</div>
+    <div id="debug-status">Status: Parado (v20 · Reativação Real)</div>
     <div id="debug-text">Leitura: —</div>
     <img id="debug-preview" alt="" />
   </div>
@@ -564,7 +564,7 @@
   <div id="control-overlay">
     <div class="control-box">
       <h2>Painel de Controle</h2>
-      <div class="version-badge" id="app-version-badge">Versão v19 · Ciclo Limpo</div>
+      <div class="version-badge" id="app-version-badge">Versão v20 · Reativação Real</div>
 
       <div class="control-group">
         <span class="control-label">Tela do App</span>
@@ -772,7 +772,7 @@
   </div>
 
   <script>
-    const APP_VERSION = 'v19';
+    const APP_VERSION = 'v20';
     const MAX_SCAN_ATTEMPTS = 3;
     const RETRY_DELAY_MS = 1200;
 
@@ -793,7 +793,7 @@
     const apiKeyInput = document.getElementById('api-key-input');
     const triggersListEl = document.getElementById('triggers-list');
 
-    document.getElementById('app-version-badge').textContent = `Versão ${APP_VERSION} · Ciclo Limpo`;
+    document.getElementById('app-version-badge').textContent = `Versão ${APP_VERSION} · Reativação Real`;
 
     // Configurações salvas
     let appSkin = localStorage.getItem('appSkin') || 'calc';
@@ -830,10 +830,12 @@
     let forcedResult = null;
     let isScanning = false;
     let isListening = false;
+    let isClosingVoice = false;
     let mediaStream = null;
     let scanTimer = null;
     let scanAttempts = 0;
     let voiceRestartTimer = null;
+    let voiceCloseWatchdog = null;
     let currentRecognition = null;
     let accumulatedTranscript = '';
     let hardwareZoomApplied = false;
@@ -1023,7 +1025,7 @@
       if (revealMode === 'immediate') {
         exibirResultadoNaTela(resultado);
         statusDot.className = '';
-        debugStatus.textContent = `CAPTURADO (${origem}): ${resultado} · Pronto p/ próxima`;
+        debugStatus.textContent = `CAPTURADO (${origem}): ${resultado} · Pronto p/ reapertar`;
       } else {
         forcedResult = resultado;
         statusDot.className = 'ready';
@@ -1281,24 +1283,14 @@
       return extrairNumeroNormal(texto);
     }
 
-    // --- INPUT POR VOZ (CICLO LIMPO: LIGA -> CAPTURA -> DESLIGA -> PRONTO P/ REAPERTAR) ---
-    function startVoiceListener() {
-      stopSecretScanner();
-      stopVoiceListener();
-
+    // --- INPUT POR VOZ (REATIVAÇÃO REAL NA 2ª, 3ª, Nª VEZ NO iOS) ---
+    function createFreshRecognition(onReadyCallback) {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (!SpeechRecognition) {
         statusDot.className = 'error';
         debugStatus.textContent = 'Voz não suportada neste navegador.';
         return;
       }
-
-      isListening = true;
-      forcedResult = null;
-      accumulatedTranscript = '';
-      statusDot.className = 'listening';
-      debugStatus.textContent = `Abrindo Mic (${voiceTriggers.length} gatilhos)...`;
-      debugText.textContent = 'Voz: ouvindo conversa...';
 
       const rec = new SpeechRecognition();
       rec.lang = 'pt-BR';
@@ -1308,7 +1300,10 @@
 
       rec.onstart = () => {
         if (currentRecognition !== rec || !isListening) return;
+        isClosingVoice = false;
+        clearTimeout(voiceCloseWatchdog);
         debugStatus.textContent = `Mic ATIVO (${voiceTriggers.length} gatilhos · fale normalmente)`;
+        if (onReadyCallback) onReadyCallback();
       };
 
       rec.onresult = (event) => {
@@ -1365,46 +1360,120 @@
       };
 
       rec.onerror = (e) => {
-        if (currentRecognition !== rec || !isListening) return;
+        if (currentRecognition !== rec) return;
         if (e.error === 'no-speech' || e.error === 'aborted') return;
-        statusDot.className = 'error';
-        debugStatus.textContent = 'Erro Mic: ' + e.error;
-        stopVoiceListener();
+        if (isListening) {
+          statusDot.className = 'error';
+          debugStatus.textContent = 'Erro Mic: ' + e.error;
+          stopVoiceListener();
+        }
       };
 
       rec.onend = () => {
-        if (isListening && currentRecognition === rec) {
+        if (currentRecognition === rec) {
+          currentRecognition = null;
+        }
+        isClosingVoice = false;
+        clearTimeout(voiceCloseWatchdog);
+
+        if (isListening) {
           clearTimeout(voiceRestartTimer);
           voiceRestartTimer = setTimeout(() => {
-            if (isListening && currentRecognition === rec) {
-              try { rec.start(); } catch (e) {}
+            if (isListening) {
+              createFreshRecognition();
             }
-          }, 150);
+          }, 200);
         }
       };
 
       try {
         rec.start();
       } catch (e) {
-        statusDot.className = 'error';
-        debugStatus.textContent = 'Erro ao abrir Mic: ' + e.message;
-        stopVoiceListener();
+        if (currentRecognition === rec) currentRecognition = null;
+        isClosingVoice = false;
+        // No iOS, se o motor ainda estava encerrando a sessão anterior, tenta novamente após 350ms
+        clearTimeout(voiceRestartTimer);
+        voiceRestartTimer = setTimeout(() => {
+          if (!isListening) return;
+          try {
+            const recRetry = new SpeechRecognition();
+            recRetry.lang = 'pt-BR';
+            recRetry.continuous = true;
+            recRetry.interimResults = true;
+            currentRecognition = recRetry;
+            recRetry.onstart = rec.onstart;
+            recRetry.onresult = rec.onresult;
+            recRetry.onerror = rec.onerror;
+            recRetry.onend = rec.onend;
+            recRetry.start();
+          } catch (err2) {
+            statusDot.className = 'error';
+            debugStatus.textContent = 'Erro ao reabrir Mic: ' + err2.message;
+            stopVoiceListener();
+          }
+        }, 350);
       }
+    }
+
+    function startVoiceListener() {
+      stopSecretScanner();
+      clearTimeout(voiceRestartTimer);
+      clearTimeout(voiceCloseWatchdog);
+
+      isListening = true;
+      forcedResult = null;
+      accumulatedTranscript = '';
+      statusDot.className = 'listening';
+      debugStatus.textContent = `Abrindo Mic (${voiceTriggers.length} gatilhos)...`;
+      debugText.textContent = 'Voz: ouvindo conversa...';
+
+      // Se uma instância anterior ainda estiver fechando no iOS, espera liberar antes de iniciar
+      if (isClosingVoice || currentRecognition) {
+        const staleRec = currentRecognition;
+        currentRecognition = null;
+        if (staleRec) {
+          staleRec.onstart = null;
+          staleRec.onresult = null;
+          staleRec.onerror = null;
+          staleRec.onend = () => {
+            isClosingVoice = false;
+            clearTimeout(voiceCloseWatchdog);
+            if (isListening) createFreshRecognition();
+          };
+          try { staleRec.stop(); } catch (e) {}
+        }
+        voiceCloseWatchdog = setTimeout(() => {
+          isClosingVoice = false;
+          if (isListening) createFreshRecognition();
+        }, 400);
+        return;
+      }
+
+      createFreshRecognition();
     }
 
     function stopVoiceListener() {
       isListening = false;
       clearTimeout(voiceRestartTimer);
       accumulatedTranscript = '';
+
       if (currentRecognition) {
         const oldRec = currentRecognition;
         currentRecognition = null;
+        isClosingVoice = true;
         oldRec.onstart = null;
         oldRec.onresult = null;
         oldRec.onerror = null;
-        oldRec.onend = null;
-        try { oldRec.stop(); } catch (e) {}
+        oldRec.onend = () => {
+          isClosingVoice = false;
+          clearTimeout(voiceCloseWatchdog);
+        };
+        try { oldRec.stop(); } catch (e) { isClosingVoice = false; }
+        voiceCloseWatchdog = setTimeout(() => {
+          isClosingVoice = false;
+        }, 450);
       }
+
       if (forcedResult === null && !isScanning) statusDot.className = '';
     }
 
