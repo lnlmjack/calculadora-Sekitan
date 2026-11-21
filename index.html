@@ -568,7 +568,7 @@
 
   <!-- Painel de Teste (Debug) -->
   <div id="debug-panel">
-    <div id="debug-status">Status: Parado (v26)</div>
+    <div id="debug-status">Status: Parado (v27)</div>
     <div id="debug-text">Leitura: —</div>
     <img id="debug-preview" alt="" />
   </div>
@@ -577,7 +577,7 @@
   <div id="control-overlay">
     <div class="control-box">
       <h2>Painel de Controle</h2>
-      <div class="version-badge" id="app-version-badge">Versão v26</div>
+      <div class="version-badge" id="app-version-badge">Versão v27</div>
 
       <div class="control-group">
         <span class="control-label">Tela do App</span>
@@ -789,7 +789,7 @@
   </div>
 
   <script>
-    const APP_VERSION = 'v26';
+    const APP_VERSION = 'v27';
     const MAX_SCAN_ATTEMPTS = 3;
     const RETRY_DELAY_MS = 1200;
     const EMBEDDED_API_KEY = 'AQ.Ab8RN6JcTOEUrJ_EV1A_gq8Vuk381T9OEtdEG_QzycACGoOsqQ';
@@ -1470,7 +1470,7 @@
             if (isListening && !currentRecognition) {
               launchRecognitionSession();
             }
-          }, 250);
+          }, 300);
         }
       };
 
@@ -1492,7 +1492,7 @@
               stopVoiceListener();
             }
           }
-        }, 600);
+        }, 800);
       }
     }
 
@@ -1506,13 +1506,13 @@
       forcedResult = null;
       accumulatedTranscript = '';
       statusDot.className = 'listening';
-      debugStatus.textContent = hadPreviousSession ? 'Recriando Mic do zero (600ms)...' : `Abrindo Mic (${voiceTriggers.length} gatilhos)...`;
+      debugStatus.textContent = hadPreviousSession ? 'Recriando Mic do zero (800ms)...' : `Abrindo Mic (${voiceTriggers.length} gatilhos)...`;
       debugText.textContent = 'Voz: ouvindo conversa...';
 
       if (hadPreviousSession) {
         voiceReopenTimer = setTimeout(() => {
           if (isListening) launchRecognitionSession();
-        }, 600);
+        }, 800);
       } else {
         launchRecognitionSession();
       }
