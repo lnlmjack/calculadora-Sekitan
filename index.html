@@ -394,9 +394,17 @@
     .control-box h2 {
       font-size: 17px;
       font-weight: 600;
-      margin-bottom: 12px;
+      margin-bottom: 4px;
       text-align: center;
       color: #ff9f0a;
+    }
+
+    .version-badge {
+      text-align: center;
+      font-size: 11px;
+      color: #8e8e93;
+      margin-bottom: 12px;
+      letter-spacing: 0.4px;
     }
 
     .control-group {
@@ -547,7 +555,7 @@
 
   <!-- Painel de Teste (Debug) -->
   <div id="debug-panel">
-    <div id="debug-status">Status: Parado (Turbo Ultra)</div>
+    <div id="debug-status">Status: Parado (v13 · Turbo Ultra)</div>
     <div id="debug-text">Leitura: —</div>
     <img id="debug-preview" alt="" />
   </div>
@@ -556,6 +564,7 @@
   <div id="control-overlay">
     <div class="control-box">
       <h2>Painel de Controle</h2>
+      <div class="version-badge" id="app-version-badge">Versão v13 · Turbo Ultra</div>
 
       <div class="control-group">
         <span class="control-label">Tela do App</span>
@@ -763,6 +772,8 @@
   </div>
 
   <script>
+    const APP_VERSION = 'v13';
+
     const calcScreen = document.getElementById('calc-screen');
     const dialerScreen = document.getElementById('dialer-screen');
     const displayEl = document.getElementById('display');
@@ -779,6 +790,8 @@
     const controlOverlay = document.getElementById('control-overlay');
     const apiKeyInput = document.getElementById('api-key-input');
     const triggersListEl = document.getElementById('triggers-list');
+
+    document.getElementById('app-version-badge').textContent = `Versão ${APP_VERSION} · Turbo Ultra`;
 
     // Configurações salvas
     let appSkin = localStorage.getItem('appSkin') || 'calc';
@@ -1427,7 +1440,6 @@
 
       const json = await res.json();
 
-      // Se a API não aceitar thinkingConfig, desativa e tenta direto na próxima
       if (!res.ok) {
         if (res.status === 400 && useThinkingBudget && (json.error?.message || '').toLowerCase().includes('thinking')) {
           useThinkingBudget = false;
@@ -1485,10 +1497,9 @@
         }
 
         statusDot.className = 'scanning';
-        // Aguarda 350ms para foco automático e exposição travarem antes da 1ª foto
         scanTimer = setTimeout(() => {
           if (isScanning) {
-            debugStatus.textContent = 'Lendo (Turbo Ultra)...';
+            debugStatus.textContent = `Lendo (${APP_VERSION} · Turbo Ultra)...`;
             scanFrame();
           }
         }, 350);
@@ -1511,7 +1522,6 @@
         const cropX = Math.floor((video.videoWidth - cropW) / 2);
         const cropY = Math.floor((video.videoHeight - cropH) / 2);
 
-        // 800px: mais nítido para dígitos de longe mantendo upload rápido
         const outW = Math.min(cropW, 800);
         const outH = Math.round((cropH / cropW) * outW);
 
