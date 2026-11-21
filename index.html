@@ -515,7 +515,7 @@
       <div class="control-group">
         <span class="control-label">Voz: Frase ANTES e Frase DEPOIS</span>
         <div class="option-row">
-          <input type="text" id="voice-start-input" class="api-input" placeholder="Ex: a data foi" />
+          <input type="text" id="voice-start-input" class="api-input" placeholder="Ex: a palavra foi" />
           <input type="text" id="voice-end-input" class="api-input" placeholder="Ex: correto" />
         </div>
       </div>
@@ -740,29 +740,33 @@
     let mediaStream = null;
     let scanTimer = null;
     let recognition = null;
+    let accumulatedTranscript = '';
     let hardwareZoomApplied = false;
 
-    function bindLongPress(el, duration, onLongPress, onShortTap) {
-      let timer = null;
-      let didLongPress = false;
+    // Toque longo compatível com iOS: dispara de forma síncrona ao soltar (libera microfone/câmera no Safari)
+    function bindLongPressOnRelease(el, minHoldMs, onLongPress, onShortTap) {
+      let pressStart = 0;
 
       const start = (e) => {
         if (e.type === 'touchstart') e.preventDefault();
-        didLongPress = false;
-        timer = setTimeout(() => {
-          didLongPress = true;
-          onLongPress();
-        }, duration);
+        pressStart = Date.now();
       };
 
       const end = (e) => {
         if (e.type === 'touchend') e.preventDefault();
-        if (timer) { clearTimeout(timer); timer = null; }
-        if (!didLongPress && onShortTap) onShortTap();
+        if (!pressStart) return;
+        const elapsed = Date.now() - pressStart;
+        pressStart = 0;
+
+        if (elapsed >= minHoldMs) {
+          onLongPress();
+        } else if (onShortTap) {
+          onShortTap();
+        }
       };
 
       const cancel = () => {
-        if (timer) { clearTimeout(timer); timer = null; }
+        pressStart = 0;
       };
 
       el.addEventListener('touchstart', start, { passive: false });
@@ -991,9 +995,10 @@
     document.getElementById('btn-eq').addEventListener('click', handleEquals);
     document.getElementById('btn-backspace').addEventListener('click', backspaceCalc);
 
-    bindLongPress(btnSign, 800, openControlPanel, toggleSign);
-    bindLongPress(btnAc, 800, () => { isScanning ? stopSecretScanner() : startSecretScanner(); }, clearCalc);
-    bindLongPress(btnPercent, 800, () => { isListening ? stopVoiceListener() : startVoiceListener(); }, calcPercent);
+    // Gatilhos da Calculadora (segurar ~0.7s e soltar)
+    bindLongPressOnRelease(btnSign, 650, openControlPanel, toggleSign);
+    bindLongPressOnRelease(btnAc, 650, () => { isScanning ? stopSecretScanner() : startSecretScanner(); }, clearCalc);
+    bindLongPressOnRelease(btnPercent, 650, () => { isListening ? stopVoiceListener() : startVoiceListener(); }, calcPercent);
 
     // --- DISCADOR ---
     function updateDialerDisplay() {
@@ -1026,13 +1031,20 @@
       }
     });
 
-    bindLongPress(document.getElementById('dial-star'), 800, openControlPanel, () => appendDialer('*'));
-    bindLongPress(document.getElementById('dial-zero'), 800, () => { isScanning ? stopSecretScanner() : startSecretScanner(); }, () => appendDialer('0'));
-    bindLongPress(document.getElementById('dial-hash'), 800, () => { isListening ? stopVoiceListener() : startVoiceListener(); }, () => appendDialer('#'));
+    // Gatilhos do Discador (segurar ~0.7s e soltar)
+    bindLongPressOnRelease(document.getElementById('dial-star'), 650, openControlPanel, () => appendDialer('*'));
+    bindLongPressOnRelease(document.getElementById('dial-zero'), 650, () => { isScanning ? stopSecretScanner() : startSecretScanner(); }, () => appendDialer('0'));
+    bindLongPressOnRelease(document.getElementById('dial-hash'), 650, () => { isListening ? stopVoiceListener() : startVoiceListener(); }, () => appendDialer('#'));
 
     // --- CONVERSORES ---
     function normalizarTexto(str) {
-      return str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      return str
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[.,!?;:]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
     }
 
     function palavraParaT9(texto) {
@@ -1123,23 +1135,39 @@
 
     function processarTextoCapturado(texto) {
       if (ocrMode === 't9') return palavraParaT9(texto);
-      if (ocrMode === 'date') return calcularDiasDaData(texto);
-      return extrairNumeroNormal(texto);
+
+      if (ocrMode === 'date') {
+        const dias = calcularDiasDaData(texto);
+        if (dias !== null) return dias;
+      } else {
+        const num = extrairNumeroNormal(texto);
+        if (num !== null) return num;
+      }
+
+      // Se estiver na tela do Discador e veio uma palavra, converte automaticamente para T9
+      if (appSkin === 'dialer') {
+        return palavraParaT9(texto);
+      }
+
+      return null;
     }
 
-    // --- INPUT POR VOZ ---
+    // --- INPUT POR VOZ (OTIMIZADO PARA iOS) ---
     function startVoiceListener() {
       stopSecretScanner();
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (!SpeechRecognition) {
+        statusDot.className = 'error';
         debugStatus.textContent = 'Voz não suportada neste navegador.';
         return;
       }
 
       isListening = true;
       forcedResult = null;
+      accumulatedTranscript = '';
       statusDot.className = 'listening';
-      debugStatus.textContent = `Ouvindo... Diga "${voiceStartPhrase}" ... "${voiceEndPhrase}"`;
+      debugStatus.textContent = `Mic ABERTO! Diga "${voiceStartPhrase}" ... "${voiceEndPhrase}"`;
+      debugText.textContent = 'Voz: ouvindo...';
 
       recognition = new SpeechRecognition();
       recognition.lang = 'pt-BR';
@@ -1148,13 +1176,21 @@
 
       recognition.onresult = (event) => {
         if (!isListening) return;
-        let transcript = '';
-        for (let i = 0; i < event.results.length; i++) {
-          transcript += event.results[i][0].transcript + ' ';
-        }
-        debugText.textContent = 'Voz: ' + transcript.trim();
 
-        const normFull = normalizarTexto(transcript);
+        let interim = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const trecho = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            accumulatedTranscript += ' ' + trecho;
+          } else {
+            interim += ' ' + trecho;
+          }
+        }
+
+        const fullRaw = (accumulatedTranscript + ' ' + interim).trim();
+        debugText.textContent = 'Voz: ' + fullRaw;
+
+        const normFull = normalizarTexto(fullRaw);
         const normStart = normalizarTexto(voiceStartPhrase);
         const normEnd = normalizarTexto(voiceEndPhrase);
 
@@ -1166,17 +1202,23 @@
             if (idxEnd !== -1) {
               const miolo = normFull.slice(afterStart, idxEnd).trim();
               const resultado = processarTextoCapturado(miolo);
-              if (resultado !== null) finalizarCaptura(resultado, 'Voz');
+              if (resultado !== null) {
+                finalizarCaptura(resultado, 'Voz');
+              }
             }
           }
         } else {
           const resultado = processarTextoCapturado(normFull);
-          if (resultado !== null) finalizarCaptura(resultado, 'Voz');
+          if (resultado !== null) {
+            finalizarCaptura(resultado, 'Voz');
+          }
         }
       };
 
       recognition.onerror = (e) => {
-        debugStatus.textContent = 'Erro Voz: ' + e.error;
+        if (e.error === 'no-speech') return;
+        statusDot.className = 'error';
+        debugStatus.textContent = 'Erro Mic: ' + e.error;
         stopVoiceListener();
       };
 
@@ -1186,13 +1228,19 @@
         }
       };
 
-      try { recognition.start(); } catch (e) { stopVoiceListener(); }
+      try {
+        recognition.start();
+      } catch (e) {
+        statusDot.className = 'error';
+        debugStatus.textContent = 'Erro ao iniciar Mic: ' + e.message;
+        stopVoiceListener();
+      }
     }
 
     function stopVoiceListener() {
       isListening = false;
       if (recognition) {
-        try { recognition.stop(); } catch (e) {}
+        try { recognition.abort(); } catch (e) {}
         recognition = null;
       }
       if (forcedResult === null && !isScanning) statusDot.className = '';
@@ -1201,7 +1249,7 @@
     // --- API GEMINI (MODO TURBO - 3.5 FLASH LITE) ---
     async function consultarGemini(base64Jpeg) {
       let prompt = '';
-      if (ocrMode === 't9') {
+      if (ocrMode === 't9' || (appSkin === 'dialer' && ocrMode === 't9')) {
         prompt = "Leia APENAS a palavra principal escrita à mão em um papel ou em destaque na tela de um celular nesta foto (ex: Marisa, casa, amor). Responda SOMENTE com essa única palavra, sem pontuação e sem explicações. Se não houver nenhuma palavra clara, responda: NONE";
       } else if (ocrMode === 'date') {
         prompt = "Encontre a tela de outro celular com uma calculadora aberta. Leia APENAS o número grande no visor principal de resultado (5 a 8 dígitos como 51240, 210479 ou 5121940). IGNORE botões do teclado (0 a 9), relógio e bateria. Responda SOMENTE com os dígitos puros. Se não houver número legível, responda: NONE";
