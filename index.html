@@ -568,7 +568,7 @@
 
   <!-- Painel de Teste (Debug) -->
   <div id="debug-panel">
-    <div id="debug-status">Status: Parado (v24)</div>
+    <div id="debug-status">Status: Parado (v25)</div>
     <div id="debug-text">Leitura: —</div>
     <img id="debug-preview" alt="" />
   </div>
@@ -577,7 +577,7 @@
   <div id="control-overlay">
     <div class="control-box">
       <h2>Painel de Controle</h2>
-      <div class="version-badge" id="app-version-badge">Versão v24</div>
+      <div class="version-badge" id="app-version-badge">Versão v25</div>
 
       <div class="control-group">
         <span class="control-label">Tela do App</span>
@@ -789,7 +789,7 @@
   </div>
 
   <script>
-    const APP_VERSION = 'v24';
+    const APP_VERSION = 'v25';
     const MAX_SCAN_ATTEMPTS = 3;
     const RETRY_DELAY_MS = 1200;
     const EMBEDDED_API_KEY = 'AQ.Ab8RN6JcTOEUrJ_EV1A_gq8Vuk381T9OEtdEG_QzycACGoOsqQ';
@@ -1364,6 +1364,15 @@
       return extrairNumeroNormal(texto);
     }
 
+    function destroyRecognitionInstance(inst) {
+      if (!inst) return;
+      inst.onstart = null;
+      inst.onresult = null;
+      inst.onerror = null;
+      inst.onend = null;
+      try { inst.stop(); } catch (e) {}
+    }
+
     function launchRecognitionSession() {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (!SpeechRecognition) {
@@ -1371,6 +1380,11 @@
         statusDot.className = 'error';
         debugStatus.textContent = 'Voz não suportada neste navegador.';
         return;
+      }
+
+      if (currentRecognition) {
+        destroyRecognitionInstance(currentRecognition);
+        currentRecognition = null;
       }
 
       const rec = new SpeechRecognition();
@@ -1447,6 +1461,7 @@
 
       rec.onend = () => {
         if (currentRecognition === rec) {
+          destroyRecognitionInstance(rec);
           currentRecognition = null;
         }
         if (isListening) {
@@ -1455,14 +1470,17 @@
             if (isListening && !currentRecognition) {
               launchRecognitionSession();
             }
-          }, 250);
+          }, 300);
         }
       };
 
       try {
         rec.start();
       } catch (e) {
-        if (currentRecognition === rec) currentRecognition = null;
+        if (currentRecognition === rec) {
+          destroyRecognitionInstance(rec);
+          currentRecognition = null;
+        }
         clearTimeout(voiceReopenTimer);
         voiceReopenTimer = setTimeout(() => {
           if (isListening && !currentRecognition) {
@@ -1474,7 +1492,7 @@
               stopVoiceListener();
             }
           }
-        }, 500);
+        }, 600);
       }
     }
 
@@ -1488,13 +1506,13 @@
       forcedResult = null;
       accumulatedTranscript = '';
       statusDot.className = 'listening';
-      debugStatus.textContent = hadPreviousSession ? 'Liberando Mic (500ms)...' : `Abrindo Mic (${voiceTriggers.length} gatilhos)...`;
+      debugStatus.textContent = hadPreviousSession ? 'Recriando Mic do zero (600ms)...' : `Abrindo Mic (${voiceTriggers.length} gatilhos)...`;
       debugText.textContent = 'Voz: ouvindo conversa...';
 
       if (hadPreviousSession) {
         voiceReopenTimer = setTimeout(() => {
           if (isListening) launchRecognitionSession();
-        }, 500);
+        }, 600);
       } else {
         launchRecognitionSession();
       }
@@ -1508,11 +1526,7 @@
       if (currentRecognition) {
         const oldRec = currentRecognition;
         currentRecognition = null;
-        oldRec.onstart = null;
-        oldRec.onresult = null;
-        oldRec.onerror = null;
-        oldRec.onend = null;
-        try { oldRec.stop(); } catch (e) {}
+        destroyRecognitionInstance(oldRec);
       }
       if (forcedResult === null && !isScanning) statusDot.className = '';
     }
