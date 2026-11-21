@@ -547,7 +547,7 @@
 
   <!-- Painel de Teste (Debug) -->
   <div id="debug-panel">
-    <div id="debug-status">Status: Parado (Modo Turbo)</div>
+    <div id="debug-status">Status: Parado (Turbo Ultra)</div>
     <div id="debug-text">Leitura: —</div>
     <img id="debug-preview" alt="" />
   </div>
@@ -821,6 +821,7 @@
     let sharedRecognition = null;
     let accumulatedTranscript = '';
     let hardwareZoomApplied = false;
+    let useThinkingBudget = true;
 
     // --- RENDERIZAÇÃO DA LISTA DINÂMICA DE GATILHOS ---
     function renderTriggersUI() {
@@ -1265,7 +1266,7 @@
       return extrairNumeroNormal(texto);
     }
 
-    // --- INPUT POR VOZ (INSTÂNCIA REUTILIZADA — NÃO TRAVA NA 2ª VEZ NO iOS) ---
+    // --- INPUT POR VOZ (INSTÂNCIA REUTILIZADA) ---
     function getSharedRecognition() {
       if (sharedRecognition) return sharedRecognition;
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -1365,7 +1366,6 @@
       try {
         rec.start();
       } catch (e) {
-        // Se o iOS ainda estava encerrando a sessão anterior, aguarda 250ms e inicia
         try { rec.stop(); } catch (err) {}
         voiceRestartTimer = setTimeout(() => {
           if (isListening) {
@@ -1391,40 +1391,55 @@
       if (forcedResult === null && !isScanning) statusDot.className = '';
     }
 
-    // --- API GEMINI (MODO TURBO - 3.5 FLASH LITE) ---
+    // --- API GEMINI (TURBO ULTRA: PROMPTS ENXUTOS + THINKING 0) ---
     async function consultarGemini(base64Jpeg) {
       let prompt = '';
       if (ocrMode === 't9') {
-        prompt = "Leia APENAS a palavra principal escrita à mão em um papel ou em destaque na tela de um celular nesta foto (ex: Marisa, casa, amor). Responda SOMENTE com essa única palavra, sem pontuação e sem explicações. Se não houver nenhuma palavra clara, responda: NONE";
+        prompt = "Retorne APENAS a palavra principal escrita no papel ou na tela (1 palavra, só letras). Se não houver, retorne: NONE";
       } else if (ocrMode === 'date') {
-        prompt = "Encontre a tela de outro celular com uma calculadora aberta. Leia APENAS o número grande no visor principal de resultado (5 a 8 dígitos como 51240, 210479 ou 5121940). IGNORE botões do teclado (0 a 9), relógio e bateria. Responda SOMENTE com os dígitos puros. Se não houver número legível, responda: NONE";
+        prompt = "Leia APENAS o número grande no visor principal da calculadora (5 a 8 dígitos). Ignore botões do teclado, hora e bateria. Retorne só os dígitos ou NONE.";
       } else {
-        prompt = "Encontre a tela de outro celular com uma calculadora aberta ou número em destaque. Leia APENAS o número grande no visor principal. IGNORE botões do teclado (0 a 9), relógio e bateria. Responda SOMENTE com os dígitos puros. Se não houver número legível, responda: NONE";
+        prompt = "Leia APENAS o número grande no visor principal da calculadora ou em destaque. Ignore botões do teclado, hora e bateria. Retorne só os dígitos ou NONE.";
       }
 
       const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${encodeURIComponent(geminiApiKey)}`;
 
+      const genConfig = { temperature: 0, maxOutputTokens: 20 };
+      if (useThinkingBudget) {
+        genConfig.thinkingConfig = { thinkingBudget: 0 };
+      }
+
+      const payload = {
+        contents: [{
+          parts: [
+            { text: prompt },
+            { inline_data: { mime_type: 'image/jpeg', data: base64Jpeg } }
+          ]
+        }],
+        generationConfig: genConfig
+      };
+
       const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{
-            parts: [
-              { text: prompt },
-              { inline_data: { mime_type: 'image/jpeg', data: base64Jpeg } }
-            ]
-          }],
-          generationConfig: { temperature: 0, maxOutputTokens: 60 }
-        })
+        body: JSON.stringify(payload)
       });
 
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error?.message || `HTTP ${res.status}`);
+
+      // Se a API não aceitar thinkingConfig, desativa e tenta direto na próxima
+      if (!res.ok) {
+        if (res.status === 400 && useThinkingBudget && (json.error?.message || '').toLowerCase().includes('thinking')) {
+          useThinkingBudget = false;
+          return consultarGemini(base64Jpeg);
+        }
+        throw new Error(json.error?.message || `HTTP ${res.status}`);
+      }
 
       return (json.candidates?.[0]?.content?.parts?.[0]?.text || 'NONE').trim();
     }
 
-    // --- LOOP TURBO DE CÂMERA ---
+    // --- LOOP TURBO ULTRA DE CÂMERA ---
     async function startSecretScanner() {
       stopVoiceListener();
       if (isScanning) return;
@@ -1440,11 +1455,16 @@
       forcedResult = null;
       hardwareZoomApplied = false;
       statusDot.className = 'loading';
-      debugStatus.textContent = 'Abrindo câmera (Modo Turbo)...';
+      debugStatus.textContent = 'Focando câmera (350ms)...';
 
       try {
         mediaStream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: camFacing, width: { ideal: 1280 }, height: { ideal: 720 } },
+          video: {
+            facingMode: camFacing,
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+            focusMode: { ideal: 'continuous' }
+          },
           audio: false
         });
 
@@ -1465,8 +1485,13 @@
         }
 
         statusDot.className = 'scanning';
-        debugStatus.textContent = 'Lendo (Modo Turbo)...';
-        scanFrame();
+        // Aguarda 350ms para foco automático e exposição travarem antes da 1ª foto
+        scanTimer = setTimeout(() => {
+          if (isScanning) {
+            debugStatus.textContent = 'Lendo (Turbo Ultra)...';
+            scanFrame();
+          }
+        }, 350);
       } catch (err) {
         debugStatus.textContent = 'Erro câmera: ' + err.message;
         stopSecretScanner();
@@ -1486,7 +1511,8 @@
         const cropX = Math.floor((video.videoWidth - cropW) / 2);
         const cropY = Math.floor((video.videoHeight - cropH) / 2);
 
-        const outW = Math.min(cropW, 640);
+        // 800px: mais nítido para dígitos de longe mantendo upload rápido
+        const outW = Math.min(cropW, 800);
         const outH = Math.round((cropH / cropW) * outW);
 
         canvas.width = outW;
@@ -1494,18 +1520,20 @@
         const ctx = canvas.getContext('2d');
         ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, outW, outH);
 
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.78);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
         if (showDebug) debugPreview.src = dataUrl;
 
+        const t0 = performance.now();
         try {
           const base64Data = dataUrl.split(',')[1];
           const respostaIA = await consultarGemini(base64Data);
-          debugText.textContent = 'IA leu: ' + respostaIA;
+          const secs = ((performance.now() - t0) / 1000).toFixed(2);
+          debugText.textContent = `IA (${secs}s): ${respostaIA}`;
 
           if (respostaIA && !respostaIA.toUpperCase().includes('NONE')) {
             const resultado = processarPorModo(respostaIA, ocrMode);
             if (resultado !== null) {
-              finalizarCaptura(resultado, 'Turbo');
+              finalizarCaptura(resultado, `Turbo ${secs}s`);
               return;
             }
           }
@@ -1515,7 +1543,7 @@
       }
 
       if (isScanning) {
-        scanTimer = setTimeout(scanFrame, 500);
+        scanTimer = setTimeout(scanFrame, 100);
       }
     }
 
