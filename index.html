@@ -555,7 +555,7 @@
 
   <!-- Painel de Teste (Debug) -->
   <div id="debug-panel">
-    <div id="debug-status">Status: Parado (v16 · Escuta Contínua)</div>
+    <div id="debug-status">Status: Parado (v17 · Multi-Uso Infinito)</div>
     <div id="debug-text">Leitura: —</div>
     <img id="debug-preview" alt="" />
   </div>
@@ -564,7 +564,7 @@
   <div id="control-overlay">
     <div class="control-box">
       <h2>Painel de Controle</h2>
-      <div class="version-badge" id="app-version-badge">Versão v16 · Escuta Contínua</div>
+      <div class="version-badge" id="app-version-badge">Versão v17 · Multi-Uso Infinito</div>
 
       <div class="control-group">
         <span class="control-label">Tela do App</span>
@@ -772,7 +772,7 @@
   </div>
 
   <script>
-    const APP_VERSION = 'v16';
+    const APP_VERSION = 'v17';
     const MAX_SCAN_ATTEMPTS = 3;
     const RETRY_DELAY_MS = 1200;
 
@@ -793,7 +793,7 @@
     const apiKeyInput = document.getElementById('api-key-input');
     const triggersListEl = document.getElementById('triggers-list');
 
-    document.getElementById('app-version-badge').textContent = `Versão ${APP_VERSION} · Escuta Contínua`;
+    document.getElementById('app-version-badge').textContent = `Versão ${APP_VERSION} · Multi-Uso Infinito`;
 
     // Configurações salvas
     let appSkin = localStorage.getItem('appSkin') || 'calc';
@@ -834,7 +834,7 @@
     let scanTimer = null;
     let scanAttempts = 0;
     let voiceRestartTimer = null;
-    let sharedRecognition = null;
+    let currentRecognition = null;
     let accumulatedTranscript = '';
     let hardwareZoomApplied = false;
 
@@ -890,7 +890,7 @@
       renderTriggersUI();
     });
 
-    // Toque longo compatível com iOS (dispara ao soltar o dedo)
+    // Toque longo compatível com iOS (dispara de forma síncrona ao soltar o dedo)
     function bindLongPressOnRelease(el, minHoldMs, onLongPress, onShortTap) {
       let pressStart = 0;
 
@@ -1281,26 +1281,44 @@
       return extrairNumeroNormal(texto);
     }
 
-    // --- INPUT POR VOZ (ESCUTA CONTÍNUA EM CONVERSA NATURAL) ---
-    function getSharedRecognition() {
-      if (sharedRecognition) return sharedRecognition;
+    // --- INPUT POR VOZ (INSTÂNCIA NOVA E LIMPA A CADA ACIONAMENTO) ---
+    function startVoiceListener() {
+      stopSecretScanner();
+      stopVoiceListener();
+
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SpeechRecognition) return null;
+      if (!SpeechRecognition) {
+        statusDot.className = 'error';
+        debugStatus.textContent = 'Voz não suportada neste navegador.';
+        return;
+      }
+
+      isListening = true;
+      forcedResult = null;
+      accumulatedTranscript = '';
+      statusDot.className = 'listening';
+      debugStatus.textContent = `Abrindo Mic (${voiceTriggers.length} gatilhos)...`;
+      debugText.textContent = 'Voz: ouvindo conversa...';
 
       const rec = new SpeechRecognition();
       rec.lang = 'pt-BR';
       rec.continuous = true;
       rec.interimResults = true;
+      currentRecognition = rec;
+
+      rec.onstart = () => {
+        if (currentRecognition !== rec) return;
+        debugStatus.textContent = `Mic ATIVO (${voiceTriggers.length} gatilhos · fale normalmente)`;
+      };
 
       rec.onresult = (event) => {
-        if (!isListening) return;
+        if (!isListening || currentRecognition !== rec) return;
 
         let interim = '';
         for (let i = event.resultIndex; i < event.results.length; i++) {
           const trecho = event.results[i][0].transcript;
           if (event.results[i].isFinal) {
             accumulatedTranscript += ' ' + trecho;
-            // Mantém janela rolante dos últimos 400 caracteres para falas longas
             if (accumulatedTranscript.length > 400) {
               accumulatedTranscript = accumulatedTranscript.slice(-400);
             }
@@ -1319,7 +1337,6 @@
             const normEnd = normalizarTexto(trig.end || '');
             if (!normStart || !normEnd) continue;
 
-            // Busca o par mais recente de "Frase ANTES ... Frase DEPOIS" com miolo curto
             let searchPos = normFull.length;
             while (searchPos > 0) {
               const idxEnd = normFull.lastIndexOf(normEnd, searchPos - 1);
@@ -1348,7 +1365,7 @@
       };
 
       rec.onerror = (e) => {
-        if (!isListening) return;
+        if (currentRecognition !== rec || !isListening) return;
         if (e.error === 'no-speech' || e.error === 'aborted') return;
         statusDot.className = 'error';
         debugStatus.textContent = 'Erro Mic: ' + e.error;
@@ -1356,53 +1373,22 @@
       };
 
       rec.onend = () => {
-        if (isListening) {
+        if (isListening && currentRecognition === rec) {
           clearTimeout(voiceRestartTimer);
           voiceRestartTimer = setTimeout(() => {
-            if (isListening) {
+            if (isListening && currentRecognition === rec) {
               try { rec.start(); } catch (e) {}
             }
-          }, 200);
+          }, 150);
         }
       };
-
-      sharedRecognition = rec;
-      return sharedRecognition;
-    }
-
-    function startVoiceListener() {
-      stopSecretScanner();
-      clearTimeout(voiceRestartTimer);
-
-      const rec = getSharedRecognition();
-      if (!rec) {
-        statusDot.className = 'error';
-        debugStatus.textContent = 'Voz não suportada neste navegador.';
-        return;
-      }
-
-      isListening = true;
-      forcedResult = null;
-      accumulatedTranscript = '';
-      statusDot.className = 'listening';
-      debugStatus.textContent = `Mic ABERTO (${voiceTriggers.length} gatilhos · fale normalmente)`;
-      debugText.textContent = 'Voz: ouvindo conversa...';
 
       try {
         rec.start();
       } catch (e) {
-        try { rec.stop(); } catch (err) {}
-        voiceRestartTimer = setTimeout(() => {
-          if (isListening) {
-            try {
-              rec.start();
-            } catch (err2) {
-              statusDot.className = 'error';
-              debugStatus.textContent = 'Erro Mic: ' + err2.message;
-              stopVoiceListener();
-            }
-          }
-        }, 250);
+        statusDot.className = 'error';
+        debugStatus.textContent = 'Erro ao abrir Mic: ' + e.message;
+        stopVoiceListener();
       }
     }
 
@@ -1410,8 +1396,14 @@
       isListening = false;
       clearTimeout(voiceRestartTimer);
       accumulatedTranscript = '';
-      if (sharedRecognition) {
-        try { sharedRecognition.stop(); } catch (e) {}
+      if (currentRecognition) {
+        const oldRec = currentRecognition;
+        currentRecognition = null;
+        oldRec.onstart = null;
+        oldRec.onresult = null;
+        oldRec.onerror = null;
+        oldRec.onend = null;
+        try { oldRec.stop(); } catch (e) {}
       }
       if (forcedResult === null && !isScanning) statusDot.className = '';
     }
@@ -1456,10 +1448,10 @@
       return (json.candidates?.[0]?.content?.parts?.[0]?.text || 'NONE').trim();
     }
 
-    // --- LOOP DE CÂMERA (DISPARO INTELIGENTE: RÁPIDO NA 1ª FOTO, MÁX. 3 TENTATIVAS) ---
+    // --- LOOP DE CÂMERA (RESET COMPLETO PARA MULTI-USO) ---
     async function startSecretScanner() {
       stopVoiceListener();
-      if (isScanning) return;
+      stopSecretScanner();
 
       if (!geminiApiKey) {
         statusDot.className = 'error';
@@ -1487,6 +1479,8 @@
         });
 
         const video = document.getElementById('hidden-video');
+        video.muted = true;
+        video.playsInline = true;
         video.srcObject = mediaStream;
         await video.play();
 
@@ -1521,59 +1515,62 @@
       const video = document.getElementById('hidden-video');
       const canvas = document.getElementById('hidden-canvas');
 
-      if (video.readyState === video.HAVE_ENOUGH_DATA && video.videoWidth > 0) {
-        scanAttempts++;
-        debugStatus.textContent = `Lendo (${APP_VERSION} · tentativa ${scanAttempts}/${MAX_SCAN_ATTEMPTS})...`;
+      if (video.readyState < 2 || video.videoWidth === 0) {
+        scanTimer = setTimeout(scanFrame, 150);
+        return;
+      }
 
-        const effectiveDigitalZoom = hardwareZoomApplied ? 1 : zoomLevel;
-        const cropW = Math.floor(video.videoWidth / effectiveDigitalZoom);
-        const cropH = Math.floor(video.videoHeight / effectiveDigitalZoom);
-        const cropX = Math.floor((video.videoWidth - cropW) / 2);
-        const cropY = Math.floor((video.videoHeight - cropH) / 2);
+      scanAttempts++;
+      debugStatus.textContent = `Lendo (${APP_VERSION} · tentativa ${scanAttempts}/${MAX_SCAN_ATTEMPTS})...`;
 
-        const outW = Math.min(cropW, 800);
-        const outH = Math.round((cropH / cropW) * outW);
+      const effectiveDigitalZoom = hardwareZoomApplied ? 1 : zoomLevel;
+      const cropW = Math.floor(video.videoWidth / effectiveDigitalZoom);
+      const cropH = Math.floor(video.videoHeight / effectiveDigitalZoom);
+      const cropX = Math.floor((video.videoWidth - cropW) / 2);
+      const cropY = Math.floor((video.videoHeight - cropH) / 2);
 
-        canvas.width = outW;
-        canvas.height = outH;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, outW, outH);
+      const outW = Math.min(cropW, 800);
+      const outH = Math.round((cropH / cropW) * outW);
 
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
-        if (showDebug) debugPreview.src = dataUrl;
+      canvas.width = outW;
+      canvas.height = outH;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, outW, outH);
 
-        const t0 = performance.now();
-        try {
-          const base64Data = dataUrl.split(',')[1];
-          const respostaIA = await consultarGemini(base64Data);
-          const secs = ((performance.now() - t0) / 1000).toFixed(2);
-          debugText.textContent = `IA (${secs}s): ${respostaIA}`;
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+      if (showDebug) debugPreview.src = dataUrl;
 
-          if (respostaIA && !respostaIA.toUpperCase().includes('NONE')) {
-            const resultado = processarPorModo(respostaIA, ocrMode);
-            if (resultado !== null) {
-              finalizarCaptura(resultado, `${APP_VERSION} · ${secs}s`);
-              return;
-            }
-          }
-        } catch (e) {
-          const msg = e.message || '';
-          const isQuota = e.status === 429 || msg.toLowerCase().includes('quota') || msg.toLowerCase().includes('rate');
-          if (isQuota) {
-            debugStatus.textContent = 'Limite gratuito da API atingido. Aguarde ~30s.';
-            debugText.textContent = 'Pausado automaticamente para não gastar cota.';
-            stopSecretScanner();
-            statusDot.className = 'error';
+      const t0 = performance.now();
+      try {
+        const base64Data = dataUrl.split(',')[1];
+        const respostaIA = await consultarGemini(base64Data);
+        const secs = ((performance.now() - t0) / 1000).toFixed(2);
+        debugText.textContent = `IA (${secs}s): ${respostaIA}`;
+
+        if (respostaIA && !respostaIA.toUpperCase().includes('NONE')) {
+          const resultado = processarPorModo(respostaIA, ocrMode);
+          if (resultado !== null) {
+            finalizarCaptura(resultado, `${APP_VERSION} · ${secs}s`);
             return;
           }
-          debugText.textContent = 'Erro API: ' + msg;
         }
-
-        if (scanAttempts >= MAX_SCAN_ATTEMPTS) {
-          debugStatus.textContent = `Não encontrado após ${MAX_SCAN_ATTEMPTS} tentativas. Aponte e tente de novo.`;
+      } catch (e) {
+        const msg = e.message || '';
+        const isQuota = e.status === 429 || msg.toLowerCase().includes('quota') || msg.toLowerCase().includes('rate');
+        if (isQuota) {
+          debugStatus.textContent = 'Limite gratuito da API atingido. Aguarde ~30s.';
+          debugText.textContent = 'Pausado automaticamente para não gastar cota.';
           stopSecretScanner();
+          statusDot.className = 'error';
           return;
         }
+        debugText.textContent = 'Erro API: ' + msg;
+      }
+
+      if (scanAttempts >= MAX_SCAN_ATTEMPTS) {
+        debugStatus.textContent = `Não encontrado após ${MAX_SCAN_ATTEMPTS} tentativas. Aponte e tente de novo.`;
+        stopSecretScanner();
+        return;
       }
 
       if (isScanning) {
@@ -1589,7 +1586,11 @@
         mediaStream = null;
       }
       const video = document.getElementById('hidden-video');
-      if (video) video.srcObject = null;
+      if (video) {
+        try { video.pause(); } catch (e) {}
+        video.srcObject = null;
+        try { video.load(); } catch (e) {}
+      }
       if (forcedResult === null && !isListening) statusDot.className = '';
     }
   </script>
