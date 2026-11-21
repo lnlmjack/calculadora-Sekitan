@@ -555,7 +555,7 @@
 
   <!-- Painel de Teste (Debug) -->
   <div id="debug-panel">
-    <div id="debug-status">Status: Parado (v13 · Turbo Ultra)</div>
+    <div id="debug-status">Status: Parado (v14 · Disparo Inteligente)</div>
     <div id="debug-text">Leitura: —</div>
     <img id="debug-preview" alt="" />
   </div>
@@ -564,7 +564,7 @@
   <div id="control-overlay">
     <div class="control-box">
       <h2>Painel de Controle</h2>
-      <div class="version-badge" id="app-version-badge">Versão v13 · Turbo Ultra</div>
+      <div class="version-badge" id="app-version-badge">Versão v14 · Disparo Inteligente</div>
 
       <div class="control-group">
         <span class="control-label">Tela do App</span>
@@ -772,7 +772,9 @@
   </div>
 
   <script>
-    const APP_VERSION = 'v13';
+    const APP_VERSION = 'v14';
+    const MAX_SCAN_ATTEMPTS = 3;
+    const RETRY_DELAY_MS = 1200;
 
     const calcScreen = document.getElementById('calc-screen');
     const dialerScreen = document.getElementById('dialer-screen');
@@ -791,7 +793,7 @@
     const apiKeyInput = document.getElementById('api-key-input');
     const triggersListEl = document.getElementById('triggers-list');
 
-    document.getElementById('app-version-badge').textContent = `Versão ${APP_VERSION} · Turbo Ultra`;
+    document.getElementById('app-version-badge').textContent = `Versão ${APP_VERSION} · Disparo Inteligente`;
 
     // Configurações salvas
     let appSkin = localStorage.getItem('appSkin') || 'calc';
@@ -830,6 +832,7 @@
     let isListening = false;
     let mediaStream = null;
     let scanTimer = null;
+    let scanAttempts = 0;
     let voiceRestartTimer = null;
     let sharedRecognition = null;
     let accumulatedTranscript = '';
@@ -1404,7 +1407,7 @@
       if (forcedResult === null && !isScanning) statusDot.className = '';
     }
 
-    // --- API GEMINI (TURBO ULTRA: PROMPTS ENXUTOS + THINKING 0) ---
+    // --- API GEMINI (DISPARO INTELIGENTE + THINKING 0) ---
     async function consultarGemini(base64Jpeg) {
       let prompt = '';
       if (ocrMode === 't9') {
@@ -1445,13 +1448,15 @@
           useThinkingBudget = false;
           return consultarGemini(base64Jpeg);
         }
-        throw new Error(json.error?.message || `HTTP ${res.status}`);
+        const err = new Error(json.error?.message || `HTTP ${res.status}`);
+        err.status = res.status;
+        throw err;
       }
 
       return (json.candidates?.[0]?.content?.parts?.[0]?.text || 'NONE').trim();
     }
 
-    // --- LOOP TURBO ULTRA DE CÂMERA ---
+    // --- LOOP DE CÂMERA (DISPARO INTELIGENTE: RÁPIDO NA 1ª FOTO, MÁX. 3 TENTATIVAS) ---
     async function startSecretScanner() {
       stopVoiceListener();
       if (isScanning) return;
@@ -1464,6 +1469,7 @@
       }
 
       isScanning = true;
+      scanAttempts = 0;
       forcedResult = null;
       hardwareZoomApplied = false;
       statusDot.className = 'loading';
@@ -1499,7 +1505,7 @@
         statusDot.className = 'scanning';
         scanTimer = setTimeout(() => {
           if (isScanning) {
-            debugStatus.textContent = `Lendo (${APP_VERSION} · Turbo Ultra)...`;
+            debugStatus.textContent = `Lendo (${APP_VERSION} · tentativa 1/${MAX_SCAN_ATTEMPTS})...`;
             scanFrame();
           }
         }, 350);
@@ -1516,6 +1522,9 @@
       const canvas = document.getElementById('hidden-canvas');
 
       if (video.readyState === video.HAVE_ENOUGH_DATA && video.videoWidth > 0) {
+        scanAttempts++;
+        debugStatus.textContent = `Lendo (${APP_VERSION} · tentativa ${scanAttempts}/${MAX_SCAN_ATTEMPTS})...`;
+
         const effectiveDigitalZoom = hardwareZoomApplied ? 1 : zoomLevel;
         const cropW = Math.floor(video.videoWidth / effectiveDigitalZoom);
         const cropH = Math.floor(video.videoHeight / effectiveDigitalZoom);
@@ -1543,17 +1552,32 @@
           if (respostaIA && !respostaIA.toUpperCase().includes('NONE')) {
             const resultado = processarPorModo(respostaIA, ocrMode);
             if (resultado !== null) {
-              finalizarCaptura(resultado, `Turbo ${secs}s`);
+              finalizarCaptura(resultado, `${APP_VERSION} · ${secs}s`);
               return;
             }
           }
         } catch (e) {
-          debugText.textContent = 'Erro API: ' + e.message;
+          const msg = e.message || '';
+          const isQuota = e.status === 429 || msg.toLowerCase().includes('quota') || msg.toLowerCase().includes('rate');
+          if (isQuota) {
+            debugStatus.textContent = 'Limite gratuito da API atingido. Aguarde ~30s.';
+            debugText.textContent = 'Pausado automaticamente para não gastar cota.';
+            stopSecretScanner();
+            statusDot.className = 'error';
+            return;
+          }
+          debugText.textContent = 'Erro API: ' + msg;
+        }
+
+        if (scanAttempts >= MAX_SCAN_ATTEMPTS) {
+          debugStatus.textContent = `Não encontrado após ${MAX_SCAN_ATTEMPTS} tentativas. Aponte e tente de novo.`;
+          stopSecretScanner();
+          return;
         }
       }
 
       if (isScanning) {
-        scanTimer = setTimeout(scanFrame, 100);
+        scanTimer = setTimeout(scanFrame, RETRY_DELAY_MS);
       }
     }
 
