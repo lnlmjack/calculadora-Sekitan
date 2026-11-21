@@ -817,7 +817,8 @@
     let isListening = false;
     let mediaStream = null;
     let scanTimer = null;
-    let recognition = null;
+    let voiceRestartTimer = null;
+    let sharedRecognition = null;
     let accumulatedTranscript = '';
     let hardwareZoomApplied = false;
 
@@ -978,7 +979,6 @@
     document.getElementById('btn-close-panel').addEventListener('click', () => {
       geminiApiKey = apiKeyInput.value.trim();
       localStorage.setItem('geminiApiKey', geminiApiKey);
-      // Limpa gatilhos vazios e salva
       voiceTriggers = voiceTriggers
         .map(t => ({ start: t.start.trim(), end: t.end.trim(), mode: t.mode }))
         .filter(t => t.start.length > 0 || t.end.length > 0);
@@ -1265,33 +1265,19 @@
       return extrairNumeroNormal(texto);
     }
 
-    // --- INPUT POR VOZ (MÚLTIPLOS GATILHOS + REINÍCIO LIMPO NO iOS) ---
-    function startVoiceListener() {
-      stopSecretScanner();
-      stopVoiceListener();
-
+    // --- INPUT POR VOZ (INSTÂNCIA REUTILIZADA — NÃO TRAVA NA 2ª VEZ NO iOS) ---
+    function getSharedRecognition() {
+      if (sharedRecognition) return sharedRecognition;
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SpeechRecognition) {
-        statusDot.className = 'error';
-        debugStatus.textContent = 'Voz não suportada neste navegador.';
-        return;
-      }
-
-      isListening = true;
-      forcedResult = null;
-      accumulatedTranscript = '';
-      statusDot.className = 'listening';
-      debugStatus.textContent = `Mic ABERTO (${voiceTriggers.length} gatilhos ativos)`;
-      debugText.textContent = 'Voz: ouvindo...';
+      if (!SpeechRecognition) return null;
 
       const rec = new SpeechRecognition();
       rec.lang = 'pt-BR';
       rec.continuous = true;
       rec.interimResults = true;
-      recognition = rec;
 
       rec.onresult = (event) => {
-        if (!isListening || recognition !== rec) return;
+        if (!isListening) return;
 
         let interim = '';
         for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -1307,7 +1293,6 @@
         debugText.textContent = 'Voz: ' + fullRaw;
         const normFull = normalizarTexto(fullRaw);
 
-        // Testa todos os gatilhos cadastrados simultaneamente
         if (voiceTriggers.length > 0) {
           for (const trig of voiceTriggers) {
             const normStart = normalizarTexto(trig.start || '');
@@ -1329,7 +1314,6 @@
             }
           }
         } else {
-          // Fallback caso o usuário apague todos os gatilhos
           const resultado = processarPorModo(normFull, ocrMode);
           if (resultado !== null) {
             finalizarCaptura(resultado, 'Voz');
@@ -1338,7 +1322,7 @@
       };
 
       rec.onerror = (e) => {
-        if (recognition !== rec) return;
+        if (!isListening) return;
         if (e.error === 'no-speech' || e.error === 'aborted') return;
         statusDot.className = 'error';
         debugStatus.textContent = 'Erro Mic: ' + e.error;
@@ -1346,29 +1330,63 @@
       };
 
       rec.onend = () => {
-        if (isListening && recognition === rec) {
-          try { rec.start(); } catch (e) { stopVoiceListener(); }
+        if (isListening) {
+          clearTimeout(voiceRestartTimer);
+          voiceRestartTimer = setTimeout(() => {
+            if (isListening) {
+              try { rec.start(); } catch (e) {}
+            }
+          }, 200);
         }
       };
+
+      sharedRecognition = rec;
+      return sharedRecognition;
+    }
+
+    function startVoiceListener() {
+      stopSecretScanner();
+      clearTimeout(voiceRestartTimer);
+
+      const rec = getSharedRecognition();
+      if (!rec) {
+        statusDot.className = 'error';
+        debugStatus.textContent = 'Voz não suportada neste navegador.';
+        return;
+      }
+
+      isListening = true;
+      forcedResult = null;
+      accumulatedTranscript = '';
+      statusDot.className = 'listening';
+      debugStatus.textContent = `Mic ABERTO (${voiceTriggers.length} gatilhos ativos)`;
+      debugText.textContent = 'Voz: ouvindo...';
 
       try {
         rec.start();
       } catch (e) {
-        statusDot.className = 'error';
-        debugStatus.textContent = 'Erro ao iniciar Mic: ' + e.message;
-        stopVoiceListener();
+        // Se o iOS ainda estava encerrando a sessão anterior, aguarda 250ms e inicia
+        try { rec.stop(); } catch (err) {}
+        voiceRestartTimer = setTimeout(() => {
+          if (isListening) {
+            try {
+              rec.start();
+            } catch (err2) {
+              statusDot.className = 'error';
+              debugStatus.textContent = 'Erro Mic: ' + err2.message;
+              stopVoiceListener();
+            }
+          }
+        }, 250);
       }
     }
 
     function stopVoiceListener() {
       isListening = false;
-      if (recognition) {
-        const oldRec = recognition;
-        recognition = null;
-        oldRec.onresult = null;
-        oldRec.onerror = null;
-        oldRec.onend = null;
-        try { oldRec.stop(); } catch (e) {}
+      clearTimeout(voiceRestartTimer);
+      accumulatedTranscript = '';
+      if (sharedRecognition) {
+        try { sharedRecognition.stop(); } catch (e) {}
       }
       if (forcedResult === null && !isScanning) statusDot.className = '';
     }
@@ -1508,6 +1526,8 @@
         mediaStream.getTracks().forEach(track => track.stop());
         mediaStream = null;
       }
+      const video = document.getElementById('hidden-video');
+      if (video) video.srcObject = null;
       if (forcedResult === null && !isListening) statusDot.className = '';
     }
   </script>
