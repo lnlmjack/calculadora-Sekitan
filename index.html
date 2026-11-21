@@ -555,7 +555,7 @@
 
   <!-- Painel de Teste (Debug) -->
   <div id="debug-panel">
-    <div id="debug-status">Status: Parado (v15 · Disparo Inteligente)</div>
+    <div id="debug-status">Status: Parado (v16 · Escuta Contínua)</div>
     <div id="debug-text">Leitura: —</div>
     <img id="debug-preview" alt="" />
   </div>
@@ -564,7 +564,7 @@
   <div id="control-overlay">
     <div class="control-box">
       <h2>Painel de Controle</h2>
-      <div class="version-badge" id="app-version-badge">Versão v15 · Disparo Inteligente</div>
+      <div class="version-badge" id="app-version-badge">Versão v16 · Escuta Contínua</div>
 
       <div class="control-group">
         <span class="control-label">Tela do App</span>
@@ -772,7 +772,7 @@
   </div>
 
   <script>
-    const APP_VERSION = 'v15';
+    const APP_VERSION = 'v16';
     const MAX_SCAN_ATTEMPTS = 3;
     const RETRY_DELAY_MS = 1200;
 
@@ -793,7 +793,7 @@
     const apiKeyInput = document.getElementById('api-key-input');
     const triggersListEl = document.getElementById('triggers-list');
 
-    document.getElementById('app-version-badge').textContent = `Versão ${APP_VERSION} · Disparo Inteligente`;
+    document.getElementById('app-version-badge').textContent = `Versão ${APP_VERSION} · Escuta Contínua`;
 
     // Configurações salvas
     let appSkin = localStorage.getItem('appSkin') || 'calc';
@@ -1281,7 +1281,7 @@
       return extrairNumeroNormal(texto);
     }
 
-    // --- INPUT POR VOZ (INSTÂNCIA REUTILIZADA) ---
+    // --- INPUT POR VOZ (ESCUTA CONTÍNUA EM CONVERSA NATURAL) ---
     function getSharedRecognition() {
       if (sharedRecognition) return sharedRecognition;
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -1300,13 +1300,17 @@
           const trecho = event.results[i][0].transcript;
           if (event.results[i].isFinal) {
             accumulatedTranscript += ' ' + trecho;
+            // Mantém janela rolante dos últimos 400 caracteres para falas longas
+            if (accumulatedTranscript.length > 400) {
+              accumulatedTranscript = accumulatedTranscript.slice(-400);
+            }
           } else {
             interim += ' ' + trecho;
           }
         }
 
         const fullRaw = (accumulatedTranscript + ' ' + interim).trim();
-        debugText.textContent = 'Voz: ' + fullRaw;
+        debugText.textContent = 'Voz: ' + fullRaw.slice(-90);
         const normFull = normalizarTexto(fullRaw);
 
         if (voiceTriggers.length > 0) {
@@ -1315,18 +1319,24 @@
             const normEnd = normalizarTexto(trig.end || '');
             if (!normStart || !normEnd) continue;
 
-            const idxStart = normFull.indexOf(normStart);
-            if (idxStart !== -1) {
-              const afterStart = idxStart + normStart.length;
-              const idxEnd = normFull.indexOf(normEnd, afterStart);
-              if (idxEnd !== -1) {
-                const miolo = normFull.slice(afterStart, idxEnd).trim();
-                const resultado = processarPorModo(miolo, trig.mode);
-                if (resultado !== null) {
-                  finalizarCaptura(resultado, 'Voz ' + trig.mode.toUpperCase());
-                  return;
+            // Busca o par mais recente de "Frase ANTES ... Frase DEPOIS" com miolo curto
+            let searchPos = normFull.length;
+            while (searchPos > 0) {
+              const idxEnd = normFull.lastIndexOf(normEnd, searchPos - 1);
+              if (idxEnd === -1) break;
+
+              const idxStart = normFull.lastIndexOf(normStart, idxEnd);
+              if (idxStart !== -1) {
+                const miolo = normFull.slice(idxStart + normStart.length, idxEnd).trim();
+                if (miolo.length > 0 && miolo.length <= 45) {
+                  const resultado = processarPorModo(miolo, trig.mode);
+                  if (resultado !== null) {
+                    finalizarCaptura(resultado, 'Voz ' + trig.mode.toUpperCase());
+                    return;
+                  }
                 }
               }
+              searchPos = idxEnd;
             }
           }
         } else {
@@ -1375,8 +1385,8 @@
       forcedResult = null;
       accumulatedTranscript = '';
       statusDot.className = 'listening';
-      debugStatus.textContent = `Mic ABERTO (${voiceTriggers.length} gatilhos ativos)`;
-      debugText.textContent = 'Voz: ouvindo...';
+      debugStatus.textContent = `Mic ABERTO (${voiceTriggers.length} gatilhos · fale normalmente)`;
+      debugText.textContent = 'Voz: ouvindo conversa...';
 
       try {
         rec.start();
